@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h2><i class="bi bi-people"></i> Mes recruteurs</h2>
+<hr>
+
+{% for item in data %}
+<div class="card mb-3 shadow-sm border-0">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-person-badge"></i> {{ item.recruteur.username }}</h5>
+      <div>
+        Moyenne :
+        <span class="badge {% if item.moyenne >= 70 %}bg-success{% elif item.moyenne >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+          {{ item.moyenne }}/100
+        </span>
+      </div>
+    </div>
+    <hr>
+    {% if item.tentatives %}
+    <table class="table table-sm">
+      <thead><tr><th>Thème</th><th>Score</th><th>Date</th></tr></thead>
+      <tbody>
+      {% for t in item.tentatives %}
+        <tr>
+          <td>{{ t.theme.nom }}</td>
+          <td><span class="badge {% if t.score >= 70 %}bg-success{% elif t.score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ t.score }}/100</span></td>
+          <td>{{ t.date_passage.strftime('%d/%m/%Y %H:%M') }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="text-muted mb-0">Aucune tentative pour le moment.</p>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">Aucun recruteur ne vous est assigné.</div>
+{% endfor %}
+{% endblock %}

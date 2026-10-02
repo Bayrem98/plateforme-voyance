@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('formateur_corrections') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h3>Correction — {{ rep.exercice.titre }}</h3>
+<p class="text-muted">Par <strong>{{ rep.user.username }}</strong>
+  le {{ rep.date_soumission.strftime('%d/%m/%Y à %H:%M') }}</p>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-primary text-white">
+        Réponse du recruteur — Client
+      </div>
+      <div class="card-body">
+        <p>{{ rep.reponse_client or '—' }}</p>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-primary text-white">
+        Explication donnée
+      </div>
+      <div class="card-body">
+        <pre style="white-space: pre-wrap;">{{ rep.explication or '—' }}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-success text-white">
+        Réponse attendue (correction type)
+      </div>
+      <div class="card-body">
+        <pre style="white-space: pre-wrap;">{{ rep.exercice.reponse_attendue or '—' }}</pre>
+      </div>
+    </div>
+
+    <form method="POST">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white">Ta correction</div>
+        <div class="card-body">
+          <label class="form-label">Note /20 *</label>
+          <input type="number" name="note" class="form-control mb-3"
+                 min="0" max="20" value="{{ rep.note or 0 }}" required>
+
+          <label class="form-label">Commentaire</label>
+          <textarea name="commentaire" class="form-control" rows="5">{{ rep.commentaire_formateur or '' }}</textarea>
+
+          <button class="btn btn-success w-100 mt-3">
+            <i class="bi bi-check-circle"></i> Enregistrer la correction
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

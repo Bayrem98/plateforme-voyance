@@ -1,0 +1,177 @@
+{
+    "1": {
+        "nom": "Bateleur",
+        "image": "01-bateleur.png",
+        "definition": "01-bateleur-definition.txt",
+        "formation": "01-bateleur-formation.docx",
+        "exercice": "01-bateleur-exercice.docx"
+    },
+
+    "2": {
+        "nom": "Papesse",
+        "image": "02-papesse.png",
+        "definition": "02-papesse-definition.txt",
+        "formation": "02-papesse-formation.txt",
+        "exercice": "02-papesse-exercice.docx"
+    },
+
+    "3": {
+        "nom": "Impératrice",
+        "image": "03-imperatrice.png",
+        "definition": "03-imperatrice-definition.txt",
+        "formation": "03-imperatrice-formation.txt",
+        "exercice": "03-imperatrice-exercice.docx"
+    },
+    
+    "4": {
+        "nom": "Empereur",
+        "image": "04-empereur.png",
+        "definition": "04-empereur-definition.txt",
+        "formation": "04-empereur-formation.txt",
+        "exercice": "04-empereur-exercice.docx"
+    },
+
+    "5": {
+        "nom": "Pape",
+        "image": "05-pape.png",
+        "definition": "05-pape-definition.txt",
+        "formation": "05-pape-formation.txt",
+        "exercice": "05-pape-exercice.docx"
+    },
+
+    "6": {
+        "nom": "Amoureux",
+        "image": "06-amoureux.png",
+        "definition": "06-amoureux-definition.txt",
+        "formation": "06-amoureux-formation.txt",
+        "exercice": "06-amoureux-exercice.docx"
+    },
+
+    "7": {
+        "nom": "Chariot",
+        "image": "07-chariot.png",
+        "definition": "07-chariot-definition.txt",
+        "formation": "07-chariot-formation.txt",
+        "exercice": "07-chariot-exercice.docx"
+    },
+
+    "8": {
+        "nom": "Justice",
+        "image": "08-justice.png",
+        "definition": "08-justice-definition.txt",
+        "formation": "08-justice-formation.txt",
+        "exercice": "08-justice-exercice.docx"
+    },
+
+    "9": {
+        "nom": "Hermite",
+        "image": "09-hermite.png",
+        "definition": "09-hermite-definition.txt",
+        "formation": "09-hermite-formation.txt",
+        "exercice": "09-hermite-exercice.docx"
+    },
+
+    "10": {
+        "nom": "Roue de fortune",
+        "image": "10-roue-de-fortune.png",
+        "definition": "10-roue-de-fortune-definition.txt",
+        "formation": "10-roue-de-fortune-formation.txt",
+        "exercice": "10-roue-de-fortune-exercice.docx"
+    },
+
+    "11": {
+        "nom": "Force",
+        "image": "11-force.png",
+        "definition": "11-force-definition.txt",
+        "formation": "11-force-formation.txt",
+        "exercice": "11-force-exercice.docx"
+    },
+
+    "12": {
+        "nom": "Pendu",
+        "image": "12-pendu.png",
+        "definition": "12-pendu-definition.txt",
+        "formation": "12-pendu-formation.txt",
+        "exercice": "12-pendu-exercice.docx"
+    },
+
+    "13": {
+        "nom": "Arcane sans nom",
+        "image": "13-arcane-sans-nom.png",
+        "definition": "13-arcane-sans-nom-definition.txt",
+        "formation": "13-arcane-sans-nom-formation.txt",
+        "exercice": "13-arcane-sans-nom-exercice.docx"
+    },
+
+    "14": {
+        "nom": "Tempérance",
+        "image": "14-tempérance.png",
+        "definition": "14-tempérance-definition.txt",
+        "formation": "14-tempérance-formation.txt",
+        "exercice": "14-tempérance-exercice.docx"
+    },
+
+    "15": {
+        "nom": "Diable",
+        "image": "15-diable.png",
+        "definition": "15-diable-definition.txt",
+        "formation": "15-diable-formation.txt",
+        "exercice": "15-diable-exercice.docx"
+    },
+
+    "16": {
+        "nom": "Maison Dieu",
+        "image": "16-maison-dieu.png",
+        "definition": "16-maison-dieu-definition.txt",
+        "formation": "16-maison-dieu-formation.txt",
+        "exercice": "16-maison-dieu-exercice.docx"
+    },
+
+    "17": {
+        "nom": "L'étoile",
+        "image": "17-l-etoile.png",
+        "definition": "17-l-etoile-definition.txt",
+        "formation": "17-l-etoile-formation.txt",
+        "exercice": "17-l-etoile-exercice.docx"
+    },
+
+    "18": {
+        "nom": "Lune",
+        "image": "18-lune.png",
+        "definition": "18-lune-definition.txt",
+        "formation": "18-lune-formation.txt",
+        "exercice": "18-lune-exercice.docx"
+    },
+
+    "19": {
+        "nom": "Soleil",
+        "image": "19-soleil.png",
+        "definition": "19-soleil-definition.txt",
+        "formation": "19-soleil-formation.txt",
+        "exercice": "19-soleil-exercice.docx"
+    },
+
+    "20": {
+        "nom": "Jugement",
+        "image": "20-jugement.png",
+        "definition": "20-jugement-definition.txt",
+        "formation": "20-jugement-formation.txt",
+        "exercice": "20-jugement-exercice.docx"
+    },
+
+    "21": {
+        "nom": "Monde",
+        "image": "21-monde.png",
+        "definition": "21-monde-definition.txt",
+        "formation": "21-monde-formation.txt",
+        "exercice": "21-monde-exercice.docx"
+    },
+
+    "22": {
+        "nom": "Mat",
+        "image": "22-mat.png",
+        "definition": "22-mat-definition.txt",
+        "formation": "22-mat-formation.txt",
+        "exercice": "22-mat-exercice.docx"
+    }
+}

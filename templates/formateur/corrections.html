@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h2><i class="bi bi-check2-square"></i> Corrections à faire</h2>
+<hr>
+
+{% set en_attente = reponses | selectattr('statut', 'equalto', 'en_attente') | list %}
+{% set corrigees = reponses | rejectattr('statut', 'equalto', 'en_attente') | list %}
+
+<h5>⏳ En attente ({{ en_attente|length }})</h5>
+<div class="row g-2 mb-4">
+{% for r in en_attente %}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-warning">
+      <div class="card-body">
+        <h6>{{ r.exercice.titre }}</h6>
+        <p class="small text-muted mb-1">Par <strong>{{ r.user.username }}</strong>
+          — {{ r.date_soumission.strftime('%d/%m/%Y %H:%M') }}</p>
+        <a href="{{ url_for('corriger_reponse', rep_id=r.id) }}"
+           class="btn btn-sm btn-warning">Corriger</a>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="col-12"><div class="alert alert-info">Aucune correction en attente ✅</div></div>
+{% endfor %}
+</div>
+
+<h5>✅ Corrigées ({{ corrigees|length }})</h5>
+<div class="row g-2">
+{% for r in corrigees %}
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <h6>{{ r.exercice.titre }}</h6>
+          <span class="badge bg-success">{{ r.note }}/20</span>
+        </div>
+        <p class="small text-muted mb-0">Par {{ r.user.username }}</p>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

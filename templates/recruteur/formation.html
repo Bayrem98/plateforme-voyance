@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('recruteur_dashboard') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h2 style="color: {{ theme.couleur }};">
+  <i class="bi {{ theme.icone }}"></i> {{ theme.nom }}
+</h2>
+<hr>
+
+{% for f in formations %}
+<div class="card mb-4 shadow-sm border-0">
+  <div class="card-body p-4">
+    <h4>{{ f.ordre }}. {{ f.titre }}</h4>
+    <div class="formation-content">{{ f.contenu | safe }}</div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">Aucune formation disponible pour ce thème.</div>
+{% endfor %}
+
+<div class="text-center my-4">
+  <a href="{{ url_for('liste_exercices', theme_id=theme.id) }}"
+     class="btn btn-lg btn-warning">
+    <i class="bi bi-journal-check"></i> Aller aux exercices pratiques
+  </a>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('recruteur_dashboard') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h2 style="color: {{ theme.couleur }};">
+  <i class="bi {{ theme.icone }}"></i> {{ theme.nom }} — Les 22 Arcanes
+</h2>
+<p class="text-muted">
+  🔓 Réussis une carte (note ≥ 10/20) pour débloquer la suivante.
+</p>
+<hr>
+
+<div class="row g-4">
+{% for c in cartes %}
+  {% set f = c.formation %}
+  <div class="col-md-6 col-lg-4 col-xl-3">
+    <div class="card h-100 shadow-sm border-0 position-relative carte-tarot
+                {% if not c.debloque %}locked-card{% endif %}
+                {% if c.valide %}valide-card{% endif %}">
+
+      {% if not c.debloque %}
+        <div class="lock-overlay">
+          <i class="bi bi-lock-fill"></i>
+          <span>Verrouillé</span>
+        </div>
+      {% elif c.valide %}
+        <span class="badge bg-success position-absolute top-0 end-0 m-2">
+          <i class="bi bi-check-circle"></i> Validé
+        </span>
+      {% endif %}
+
+      <div class="carte-image-container">
+        {% if f and f.image %}
+          <img src="{{ url_for('static', filename='cartes/' ~ f.image) }}"
+               alt="{{ f.titre }}" class="carte-image">
+        {% else %}
+          <div class="carte-placeholder">
+            <i class="bi bi-suit-spade-fill"></i>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="card-body text-center">
+        <div class="carte-numero-badge">{{ c.niveau }}</div>
+
+        <h6 class="carte-titre mt-2 mb-2">
+          {% if f %}{{ f.titre }}{% else %}Carte {{ c.niveau }}{% endif %}
+        </h6>
+
+        {% if f and f.definition %}
+          <p class="carte-definition small text-muted mb-3">
+            {{ f.definition[:110] }}{% if f.definition|length > 110 %}…{% endif %}
+          </p>
+        {% endif %}
+
+        {% if c.debloque and f %}
+          <a href="{{ url_for('voir_carte_tarot', formation_id=f.id) }}"
+             class="btn btn-sm {% if c.valide %}btn-success{% else %}btn-primary{% endif %} w-100">
+            {% if c.valide %}
+              <i class="bi bi-eye"></i> Revoir
+            {% else %}
+              <i class="bi bi-play-circle"></i> Ouvrir
+            {% endif %}
+          </a>
+        {% else %}
+          <button class="btn btn-sm btn-secondary w-100" disabled>
+            <i class="bi bi-lock"></i> Verrouillé
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="col-12">
+    <div class="alert alert-info">
+      Aucune carte importée. Lance <code>python import_tarot.py</code>.
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Utilisateurs{% endblock %}
+{% block content %}
+<h2><i class="bi bi-people"></i> Gestion des utilisateurs</h2>
+<hr>
+
+<div class="row">
+  <!-- FORMULAIRE DE CRÉATION -->
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header text-white" style="background: linear-gradient(135deg, #4a148c, #7b1fa2);">
+        <i class="bi bi-person-plus"></i> Nouvel utilisateur
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('admin_create_user') }}">
+          <div class="mb-3">
+            <label class="form-label">Nom d'utilisateur *</label>
+            <input type="text" name="username" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mot de passe *</label>
+            <input type="password" name="password" class="form-control" required minlength="6">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Rôle *</label>
+            <select name="role" class="form-select" id="roleSelect" required>
+              <option value="recruteur">Recruteur</option>
+              <option value="formateur">Formateur</option>
+              <option value="admin">SuperAdmin</option>
+            </select>
+          </div>
+          <div class="mb-3" id="formateurDiv">
+            <label class="form-label">Formateur assigné (si recruteur)</label>
+            <select name="formateur_id" class="form-select">
+              <option value="">— Aucun —</option>
+              {% for f in formateurs %}
+                <option value="{{ f.id }}">{{ f.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-success w-100">
+            <i class="bi bi-check-circle"></i> Créer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTE DES UTILISATEURS -->
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-list-ul"></i> Liste ({{ users|length }})
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Formateur</th>
+              <th>Statut</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for u in users %}
+            <tr>
+              <td><strong>{{ u.username }}</strong></td>
+              <td>{{ u.email }}</td>
+              <td>
+                {% if u.role == 'admin' %}
+                  <span class="badge bg-danger">Admin</span>
+                {% elif u.role == 'formateur' %}
+                  <span class="badge bg-primary">Formateur</span>
+                {% else %}
+                  <span class="badge bg-secondary">Recruteur</span>
+                {% endif %}
+              </td>
+              <td>{{ u.formateur.username if u.formateur else '—' }}</td>
+              <td>
+                {% if u.actif %}
+                  <span class="badge bg-success">Actif</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inactif</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if u.id != current_user.id %}
+                <a href="{{ url_for('admin_toggle_user', uid=u.id) }}"
+                   class="btn btn-sm btn-outline-{% if u.actif %}warning{% else %}success{% endif %}"
+                   title="Activer/Désactiver">
+                  <i class="bi bi-power"></i>
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('roleSelect').addEventListener('change', function() {
+    document.getElementById('formateurDiv').style.display =
+        (this.value === 'recruteur') ? 'block' : 'none';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('cartes_tarot', theme_id=theme.id) }}"
+   class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour aux cartes
+</a>
+
+<div class="row">
+  <div class="col-md-4 mb-4">
+    <div class="card shadow-sm border-0 sticky-top" style="top: 20px;">
+      {% if formation.image %}
+        <img src="{{ url_for('static', filename='cartes/' ~ formation.image) }}"
+             class="card-img-top" alt="{{ formation.titre }}"
+             style="border-radius: 15px 15px 0 0;">
+      {% endif %}
+      <div class="card-body text-center">
+        <h5>{{ formation.titre }}</h5>
+        <span class="badge bg-dark">Carte {{ formation.ordre }}/22</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header text-white" style="background: {{ theme.couleur }};">
+        <i class="bi bi-book"></i> Formation
+      </div>
+      <div class="card-body formation-content">
+        {{ formation.contenu | safe }}
+      </div>
+    </div>
+
+    <h4><i class="bi bi-journal-check"></i> Exercices pratiques</h4>
+
+    {% if exercices %}
+    <div class="row g-3">
+      {% for ex in exercices %}
+        {% set rep = mes_reponses.get(ex.id) %}
+        <div class="col-md-6">
+          <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between mb-2">
+                <h6 class="mb-0">📝 {{ ex.titre }}</h6>
+                {% if rep and rep.statut == 'corrige' %}
+                  <span class="badge {% if rep.valide %}bg-success{% else %}bg-danger{% endif %}">
+                    {{ rep.note }}/20
+                  </span>
+                {% elif rep %}
+                  <span class="badge bg-warning text-dark">En attente</span>
+                {% else %}
+                  <span class="badge bg-secondary">Non commencé</span>
+                {% endif %}
+              </div>
+
+              {% if ex.domaine %}
+                <span class="badge bg-info text-dark mb-2">{{ ex.domaine }}</span>
+              {% endif %}
+
+              <p class="small text-muted mb-2">{{ ex.enonce|truncate(80) }}</p>
+
+              {% if ex.mots_cles %}
+                <div class="mb-2 small">
+                  🔑
+                  {% for mot in ex.mots_cles.split(',') %}
+                    <span class="badge bg-dark">{{ mot.strip() }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <a href="{{ url_for('passer_exercice', exercice_id=ex.id) }}"
+                 class="btn btn-sm w-100 {% if rep %}btn-outline-primary{% else %}btn-primary{% endif %}">
+                {% if rep %}Voir / Modifier{% else %}Commencer{% endif %}
+              </a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">Aucun exercice pour cette carte.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

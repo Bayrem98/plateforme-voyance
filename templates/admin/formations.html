@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Formations{% endblock %}
+{% block content %}
+<h2><i class="bi bi-journal-text"></i> Gestion des formations</h2>
+<hr>
+
+<div class="row">
+  <!-- FORMULAIRE -->
+  <div class="col-md-5">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header text-white" style="background: linear-gradient(135deg, #4a148c, #7b1fa2);">
+        <i class="bi bi-plus-circle"></i> Nouvelle formation
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Thème *</label>
+            <select name="theme_id" class="form-select" required>
+              <option value="">— Choisir —</option>
+              {% for t in themes %}
+                <option value="{{ t.id }}">{{ t.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Titre *</label>
+            <input type="text" name="titre" class="form-control" required
+                   placeholder="Ex: Introduction à l'Astrologie">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Ordre d'affichage</label>
+            <input type="number" name="ordre" class="form-control" value="1" min="1">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contenu (HTML autorisé) *</label>
+            <textarea name="contenu" class="form-control" rows="10" required
+                      placeholder="<p>Texte de la formation…</p>"></textarea>
+            <small class="text-muted">
+              Tu peux utiliser du HTML : &lt;p&gt;, &lt;h3&gt;, &lt;ul&gt;, &lt;strong&gt;, &lt;img&gt;…
+            </small>
+          </div>
+          <button class="btn btn-success w-100">
+            <i class="bi bi-check-circle"></i> Ajouter la formation
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+   <!-- LISTE -->
+  <div class="col-md-7">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-list-ul"></i> Formations existantes
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Thème</th>
+              <th>Ordre</th>
+              <th>Titre</th>
+              <th>Aperçu</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for f in formations %}
+            <tr>
+              <td>
+                <span class="badge" style="background: {{ f.theme.couleur }};">
+                  <i class="bi {{ f.theme.icone }}"></i> {{ f.theme.nom }}
+                </span>
+              </td>
+              <td>{{ f.ordre }}</td>
+              <td><strong>{{ f.titre }}</strong></td>
+              <td><small class="text-muted">{{ f.contenu|striptags|truncate(60) }}</small></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-center text-muted">Aucune formation</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}

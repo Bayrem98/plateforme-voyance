@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Questions{% endblock %}
+{% block content %}
+<h2><i class="bi bi-question-circle"></i> Banque de questions</h2>
+<hr>
+
+<div class="row">
+  <!-- FORMULAIRE -->
+  <div class="col-md-5">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header text-white" style="background: linear-gradient(135deg, #4a148c, #7b1fa2);">
+        <i class="bi bi-plus-circle"></i> Nouvelle question
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Thème *</label>
+            <select name="theme_id" class="form-select" required>
+              <option value="">— Choisir —</option>
+              {% for t in themes %}
+                <option value="{{ t.id }}">{{ t.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Question *</label>
+            <textarea name="texte" class="form-control" rows="2" required></textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-6 mb-2">
+              <label class="form-label">Option A *</label>
+              <input type="text" name="option_a" class="form-control" required>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Option B *</label>
+              <input type="text" name="option_b" class="form-control" required>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Option C *</label>
+              <input type="text" name="option_c" class="form-control" required>
+            </div>
+            <div class="col-6 mb-2">
+              <label class="form-label">Option D *</label>
+              <input type="text" name="option_d" class="form-control" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Bonne réponse *</label>
+            <select name="bonne_reponse" class="form-select" required>
+              <option value="a">A</option>
+              <option value="b">B</option>
+              <option value="c">C</option>
+              <option value="d">D</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Difficulté</label>
+            <select name="difficulte" class="form-select">
+              <option value="facile">Facile</option>
+              <option value="moyen">Moyen</option>
+              <option value="difficile">Difficile</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Explication (affichée après le quiz)</label>
+            <textarea name="explication" class="form-control" rows="2"></textarea>
+          </div>
+          <button class="btn btn-success w-100">
+            <i class="bi bi-check-circle"></i> Ajouter la question
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTE -->
+  <div class="col-md-7">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-dark text-white d-flex justify-content-between">
+        <span><i class="bi bi-list-ul"></i> Questions ({{ questions|length }})</span>
+        <span>
+          {% for t in themes %}
+            <span class="badge ms-1" style="background: {{ t.couleur }};">
+              {{ t.nom }}: {{ t.questions|length }}
+            </span>
+          {% endfor %}
+        </span>
+      </div>
+      <div class="card-body p-0" style="max-height: 700px; overflow-y: auto;">
+        {% for q in questions %}
+        <div class="border-bottom p-3">
+          <div class="d-flex justify-content-between">
+            <span class="badge" style="background: {{ q.theme.couleur }};">
+              {{ q.theme.nom }}
+            </span>
+            <div>
+              <span class="badge bg-{% if q.difficulte == 'facile' %}success{% elif q.difficulte == 'moyen' %}warning text-dark{% else %}danger{% endif %}">
+                {{ q.difficulte }}
+              </span>
+              <a href="{{ url_for('admin_delete_question', qid=q.id) }}"
+                 class="btn btn-sm btn-outline-danger ms-1"
+                 onclick="return confirm('Supprimer cette question ?')">
+                <i class="bi bi-trash"></i>
+              </a>
+            </div>
+          </div>
+          <p class="mb-2 mt-2"><strong>{{ q.texte }}</strong></p>
+          <ul class="list-unstyled small mb-1">
+            <li class="{% if q.bonne_reponse == 'a' %}text-success fw-bold{% endif %}">
+              A. {{ q.option_a }}
+            </li>
+            <li class="{% if q.bonne_reponse == 'b' %}text-success fw-bold{% endif %}">
+              B. {{ q.option_b }}
+            </li>
+            <li class="{% if q.bonne_reponse == 'c' %}text-success fw-bold{% endif %}">
+              C. {{ q.option_c }}
+            </li>
+            <li class="{% if q.bonne_reponse == 'd' %}text-success fw-bold{% endif %}">
+              D. {{ q.option_d }}
+            </li>
+          </ul>
+          {% if q.explication %}
+            <small class="text-muted"><i class="bi bi-info-circle"></i> {{ q.explication }}</small>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="p-3 text-center text-muted">Aucune question pour le moment.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

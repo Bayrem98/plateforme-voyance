@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('admin_exercices') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h2><i class="bi bi-pencil-square"></i> Modifier : {{ ex.titre }}</h2>
+<hr>
+
+<form method="POST">
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Thème *</label>
+              <select name="theme_id" class="form-select" required>
+                {% for t in themes %}
+                  <option value="{{ t.id }}" {% if t.id == ex.theme_id %}selected{% endif %}>
+                    {{ t.nom }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Domaine</label>
+              <select name="domaine" class="form-select">
+                <option value="">—</option>
+                {% for d in ['Amour','Travail','Santé','Finance','Famille'] %}
+                  <option {% if ex.domaine == d %}selected{% endif %}>{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-9 mb-3">
+              <label class="form-label">Titre *</label>
+              <input type="text" name="titre" class="form-control" required value="{{ ex.titre }}">
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">Ordre</label>
+              <input type="number" name="ordre" class="form-control" value="{{ ex.ordre }}" min="1">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Question du client *</label>
+            <textarea name="enonce" class="form-control" rows="3" required>{{ ex.enonce }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Données (dates, infos client)</label>
+            <textarea name="donnees" class="form-control" rows="3">{{ ex.donnees or '' }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">🔑 Mots-clés à intégrer (séparés par virgule)</label>
+            <input type="text" name="mots_cles" class="form-control"
+                   value="{{ ex.mots_cles or '' }}"
+                   placeholder="Impulsion, Élan, Instabilité">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">🎯 Réponse attendue (correction type)</label>
+            <textarea name="reponse_attendue" class="form-control" rows="6"
+                      placeholder="Rédige ici la réponse modèle que le formateur comparera">{{ ex.reponse_attendue or '' }}</textarea>
+            <small class="text-muted">
+              Cette réponse est <strong>visible uniquement par le formateur</strong> lors de la correction.
+            </small>
+          </div>
+
+          <button class="btn btn-success btn-lg w-100">
+            <i class="bi bi-check-circle"></i> Enregistrer les modifications
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-info text-white">
+          <i class="bi bi-info-circle"></i> Aperçu
+        </div>
+        <div class="card-body small">
+          <p><strong>Thème :</strong> {{ ex.theme.nom }}</p>
+          <p><strong>Domaine :</strong> {{ ex.domaine or '—' }}</p>
+          <p><strong>Mots-clés :</strong> {{ ex.mots_cles or '—' }}</p>
+          <hr>
+          <p class="text-muted mb-0">
+            💡 <strong>Astuce :</strong> remplis bien la "Réponse attendue" : elle
+            sert de référence au formateur pour noter les recruteurs.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

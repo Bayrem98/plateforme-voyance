@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center mb-4">
+  <h2>Résultat — {{ theme.nom }}</h2>
+  <div class="display-1 fw-bold {% if score >= 70 %}text-success{% elif score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+    {{ score }}/100
+  </div>
+  <p class="lead">{{ bonnes }} bonnes réponses sur {{ total }}</p>
+  <a href="{{ url_for('recruteur_dashboard') }}" class="btn btn-primary">Retour au dashboard</a>
+</div>
+
+<h4>Détail :</h4>
+{% for d in details %}
+<div class="card mb-2 {% if d.correcte %}border-success{% else %}border-danger{% endif %}">
+  <div class="card-body">
+    <p><strong>{{ loop.index }}. {{ d.question }}</strong></p>
+    <p class="mb-1">
+      Votre réponse : <span class="badge {% if d.correcte %}bg-success{% else %}bg-danger{% endif %}">
+        {{ d.votre_reponse|upper if d.votre_reponse else '—' }}
+      </span>
+      {% if not d.correcte %}
+        • Bonne réponse : <span class="badge bg-success">{{ d.bonne_reponse|upper }}</span>
+      {% endif %}
+    </p>
+    {% if d.explication %}<small class="text-muted"><i class="bi bi-info-circle"></i> {{ d.explication }}</small>{% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('liste_exercices', theme_id=ex.theme_id) }}"
+   class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h3>📝 {{ ex.titre }}</h3>
+{% if ex.domaine %}
+  <span class="badge bg-info text-dark mb-3">
+    <i class="bi bi-tag"></i> {{ ex.domaine }}
+  </span>
+{% endif %}
+
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-header bg-primary text-white">
+    <i class="bi bi-chat-quote"></i> Question du client
+  </div>
+  <div class="card-body">
+    <p class="fs-5 mb-0">{{ ex.enonce }}</p>
+    {% if ex.donnees %}
+      <hr>
+      <strong>Données :</strong>
+      <pre style="white-space: pre-wrap; margin: 0;">{{ ex.donnees }}</pre>
+    {% endif %}
+  </div>
+</div>
+
+{% if ex.mots_cles %}
+<div class="alert alert-warning">
+  <strong><i class="bi bi-key"></i> Mots-clés à intégrer :</strong>
+  <div class="mt-2">
+    {% for mot in ex.mots_cles.split(',') %}
+      <span class="badge bg-dark me-1 mb-1">{{ mot.strip() }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if rep and rep.statut == 'corrige' %}
+<div class="alert alert-{% if rep.valide %}success{% else %}danger{% endif %}">
+  <h5>
+    <i class="bi bi-{% if rep.valide %}check-circle{% else %}x-circle{% endif %}"></i>
+    Note : {{ rep.note }}/20
+  </h5>
+  {% if rep.commentaire_formateur %}
+    <p class="mb-0"><strong>Commentaire :</strong><br>
+    {{ rep.commentaire_formateur }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<form method="POST">
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+      <label class="form-label fw-bold">
+        ✏️ Ta réponse au client
+      </label>
+      <textarea name="reponse_client" class="form-control" rows="6" required
+                placeholder="Rédige ta réponse complète en intégrant les mots-clés…">{{ rep.reponse_client if rep else '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+      <label class="form-label fw-bold">
+        📘 Explication / justification
+      </label>
+      <textarea name="explication" class="form-control" rows="5"
+                placeholder="Explique comment tu as utilisé les mots-clés…">{{ rep.explication if rep else '' }}</textarea>
+    </div>
+  </div>
+
+  <button class="btn btn-success btn-lg">
+    <i class="bi bi-send"></i> Envoyer pour correction
+  </button>
+</form>
+
+<script>
+const ta = document.querySelector('textarea[name="reponse_client"]');
+const cnt = document.getElementById('count');
+const update = () => cnt.textContent = ta.value.length;
+ta.addEventListener('input', update); update();
+</script>
+{% endblock %}

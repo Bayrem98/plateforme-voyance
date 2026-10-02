@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('recruteur_dashboard') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+<h2 style="color: {{ theme.couleur }};">
+  <i class="bi {{ theme.icone }}"></i> Exercices — {{ theme.nom }}
+</h2>
+<p class="text-muted">Réponds aux exercices, ton formateur les corrigera.</p>
+<hr>
+
+<div class="row g-3">
+{% for ex in exercices %}
+  {% set rep = mes_reponses.get(ex.id) %}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="mb-0">📝 {{ ex.titre }}</h5>
+          {% if rep and rep.statut == 'corrige' %}
+            <span class="badge {% if rep.valide %}bg-success{% else %}bg-danger{% endif %}">
+              {{ rep.note }}/20
+            </span>
+          {% elif rep %}
+            <span class="badge bg-warning text-dark">En attente</span>
+          {% else %}
+            <span class="badge bg-secondary">Non commencé</span>
+          {% endif %}
+        </div>
+
+        {% if ex.domaine %}
+          <span class="badge bg-info text-dark mb-2">
+            <i class="bi bi-tag"></i> {{ ex.domaine }}
+          </span>
+        {% endif %}
+
+        <p class="text-muted small mb-2">{{ ex.enonce|truncate(100) }}</p>
+
+        {% if ex.mots_cles %}
+          <div class="mb-3 small">
+            <strong>🔑 Mots-clés :</strong>
+            {% for mot in ex.mots_cles.split(',') %}
+              <span class="badge bg-dark">{{ mot.strip() }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <a href="{{ url_for('passer_exercice', exercice_id=ex.id) }}"
+           class="btn btn-sm {% if rep %}btn-outline-primary{% else %}btn-primary{% endif %}">
+          {% if rep %}Voir / Modifier{% else %}Commencer{% endif %}
+        </a>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="col-12">
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i> Aucun exercice pour ce thème.
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

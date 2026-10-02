@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+<h2><i class="bi bi-pencil-square"></i> Exercices ouverts</h2>
+<hr>
+
+<div class="row">
+  <div class="col-md-5">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header text-white" style="background: linear-gradient(135deg,#4a148c,#7b1fa2);">
+        <i class="bi bi-plus-circle"></i> Nouvel exercice
+      </div>
+      <div class="card-body">
+        <form method="POST">
+  <div class="mb-3">
+    <label class="form-label">Thème *</label>
+    <select name="theme_id" class="form-select" required>
+      <option value="">—</option>
+      {% for t in themes %}<option value="{{ t.id }}">{{ t.nom }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Titre *</label>
+    <input type="text" name="titre" class="form-control" required>
+  </div>
+  <div class="row">
+    <div class="col-6 mb-3">
+      <label class="form-label">Domaine</label>
+      <select name="domaine" class="form-select">
+        <option value="">—</option>
+        <option>Amour</option>
+        <option>Travail</option>
+        <option>Santé</option>
+        <option>Finance</option>
+        <option>Famille</option>
+      </select>
+    </div>
+    <div class="col-6 mb-3">
+      <label class="form-label">Ordre</label>
+      <input type="number" name="ordre" class="form-control" value="1" min="1">
+    </div>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Question du client *</label>
+    <textarea name="enonce" class="form-control" rows="3" required></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Données (dates, infos)</label>
+    <textarea name="donnees" class="form-control" rows="2"></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Mots-clés à intégrer (séparés par virgule)</label>
+    <input type="text" name="mots_cles" class="form-control"
+           placeholder="Impulsion, Élan, Instabilité">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Réponse attendue (correction type)</label>
+    <textarea name="reponse_attendue" class="form-control" rows="4"></textarea>
+  </div>
+  <button class="btn btn-success w-100">Ajouter</button>
+</form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-dark text-white">Exercices ({{ exercices|length }})</div>
+      <div class="card-body p-0" style="max-height: 700px; overflow-y: auto;">
+        {% for ex in exercices %}
+<div class="border-bottom p-3">
+  <div class="d-flex justify-content-between align-items-start">
+    <div class="flex-grow-1">
+      <div class="mb-1">
+        <span class="badge" style="background: {{ ex.theme.couleur }};">
+          {{ ex.theme.nom }}
+        </span>
+        {% if ex.domaine %}
+          <span class="badge bg-info text-dark">{{ ex.domaine }}</span>
+        {% endif %}
+        <strong class="ms-2">{{ ex.titre }}</strong>
+      </div>
+      <p class="small mb-1">{{ ex.enonce|truncate(100) }}</p>
+      {% if ex.mots_cles %}
+        <small>
+          🔑
+          {% for mot in ex.mots_cles.split(',') %}
+            <span class="badge bg-dark">{{ mot.strip() }}</span>
+          {% endfor %}
+        </small>
+      {% endif %}
+    </div>
+    <div class="ms-2">
+      <a href="{{ url_for('admin_edit_exercice', ex_id=ex.id) }}"
+         class="btn btn-sm btn-outline-primary" title="Modifier">
+        <i class="bi bi-pencil"></i>
+      </a>
+      {% if current_user.role == 'admin' %}
+      <a href="{{ url_for('admin_delete_exercice', ex_id=ex.id) }}"
+         class="btn btn-sm btn-outline-danger" title="Supprimer"
+         onclick="return confirm('Supprimer cet exercice ?')">
+        <i class="bi bi-trash"></i>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="p-3 text-center text-muted">Aucun exercice</div>
+{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

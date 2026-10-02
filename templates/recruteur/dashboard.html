@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-mortarboard"></i> Mes formations</h2>
+
+<div class="row g-4">
+{% for theme in themes %}
+  {% set best = scores[theme.id] %}
+  {% set est_tarot = (theme.nom == 'Tarot de Marseille') %}
+
+  <div class="col-md-4">
+    <div class="card h-100 shadow-sm border-0 theme-card">
+      <div class="card-body">
+        <div class="d-flex align-items-center mb-3">
+          <div class="theme-icon" style="background: {{ theme.couleur }};">
+            <i class="bi {{ theme.icone }}"></i>
+          </div>
+          <h5 class="ms-3 mb-0">{{ theme.nom }}</h5>
+        </div>
+        <p class="text-muted small">{{ theme.description or '' }}</p>
+
+        {% if best %}
+          <div class="mb-3">
+            <small>Meilleur score :</small>
+            <span class="badge {% if best.score >= 70 %}bg-success{% elif best.score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+              {{ best.score }}/100
+            </span>
+          </div>
+        {% else %}
+          <div class="mb-3"><small class="text-muted">Pas encore testé</small></div>
+        {% endif %}
+
+        {% if est_tarot %}
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('cartes_tarot', theme_id=theme.id) }}"
+               class="btn btn-primary">
+              <i class="bi bi-suit-spade-fill"></i> Accéder aux cartes
+            </a>
+          </div>
+        {% else %}
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('voir_formation', theme_id=theme.id) }}"
+               class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-book"></i> Lire la formation
+            </a>
+            <a href="{{ url_for('liste_exercices', theme_id=theme.id) }}"
+               class="btn btn-warning btn-sm">
+              <i class="bi bi-journal-check"></i> Exercices pratiques
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

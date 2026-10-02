@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Thèmes{% endblock %}
+{% block content %}
+<h2><i class="bi bi-tags"></i> Thèmes de formation</h2>
+<hr>
+
+<div class="row">
+  <!-- FORMULAIRE -->
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header text-white" style="background: linear-gradient(135deg, #4a148c, #7b1fa2);">
+        <i class="bi bi-plus-circle"></i> Nouveau thème
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Nom du thème *</label>
+            <input type="text" name="nom" class="form-control" required
+                   placeholder="Ex: Astrologie">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3"
+                      placeholder="Brève description…"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Icône Bootstrap</label>
+            <input type="text" name="icone" class="form-control" value="bi-book">
+            <small class="text-muted">
+              Ex: <code>bi-sun</code>, <code>bi-123</code>, <code>bi-suit-spade</code>,
+              <code>bi-magic</code>, <code>bi-stars</code>
+            </small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Couleur</label>
+            <input type="color" name="couleur" class="form-control form-control-color"
+                   value="#7b1fa2">
+          </div>
+          <button class="btn btn-success w-100">
+            <i class="bi bi-check-circle"></i> Créer le thème
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTE -->
+  <div class="col-md-8">
+    <div class="row g-3">
+      {% for t in themes %}
+      <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-2">
+              <div class="theme-icon" style="background: {{ t.couleur }};">
+                <i class="bi {{ t.icone }}"></i>
+              </div>
+              <div class="ms-3">
+                <h5 class="mb-0">{{ t.nom }}</h5>
+                <small class="text-muted">
+                  {{ t.formations|length }} formation(s) •
+                  {{ t.questions|length }} question(s)
+                </small>
+              </div>
+            </div>
+            <p class="text-muted small mb-0">{{ t.description or '' }}</p>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="col-12">
+        <div class="alert alert-info">Aucun thème créé pour le moment.</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
