@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width: 900px;">
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-header text-white" style="background: linear-gradient(135deg, #4a148c, #7b1fa2);">
+      <div class="d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">
+          <i class="bi bi-pencil-square"></i> Test : {{ ex.titre }}
+        </h4>
+        <div class="chrono-display">
+          <i class="bi bi-stopwatch"></i>
+          <span id="chrono">15:00</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body py-2">
+      <div class="alert alert-warning mb-0">
+        ⚠️ <strong>Mode examen</strong> — La formation est masquée.
+        <br><small>L'IA corrigera automatiquement ta réponse à la fin.</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-header bg-primary text-white">
+      <i class="bi bi-chat-quote"></i> Question du client
+    </div>
+    <div class="card-body">
+      <p class="fs-5 mb-0">{{ ex.enonce }}</p>
+      {% if ex.donnees %}
+        <hr>
+        <strong>Données :</strong>
+        <pre style="white-space: pre-wrap; margin: 0;">{{ ex.donnees }}</pre>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if ex.mots_cles %}
+  <div class="alert alert-warning">
+    <strong><i class="bi bi-key"></i> Mots-clés à intégrer :</strong>
+    <div class="mt-2">
+      {% for mot in ex.mots_cles.split(',') %}
+        <span class="badge bg-dark me-1 mb-1">{{ mot.strip() }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="POST" id="testForm">
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-body">
+        <label class="form-label fw-bold">✏️ Ta réponse au client</label>
+        <textarea name="reponse_client" id="reponse_client"
+                  class="form-control" rows="8" required
+                  placeholder="Rédige ta réponse complète en intégrant les mots-clés…"></textarea>
+        <small class="text-muted">Compte : <span id="compteur">0</span> caractères</small>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-body">
+        <label class="form-label fw-bold">
+          📘 Explication / justification <span class="text-muted">(optionnel)</span>
+        </label>
+        <textarea name="explication" class="form-control" rows="5"
+                  placeholder="Explique ton raisonnement, tes calculs…"></textarea>
+      </div>
+    </div>
+
+    <div class="text-center my-4">
+      <button type="submit" class="btn btn-lg btn-success">
+        <i class="bi bi-send"></i> Envoyer pour correction IA
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DUREE_MINUTES = 15;
+let tempsRestant = DUREE_MINUTES * 60;
+const chronoEl = document.getElementById('chrono');
+const form = document.getElementById('testForm');
+
+function afficherChrono() {
+    const min = Math.floor(tempsRestant / 60);
+    const sec = tempsRestant % 60;
+    chronoEl.textContent = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    if (tempsRestant <= 60) chronoEl.style.color = '#ff5252';
+}
+afficherChrono();
+
+const interval = setInterval(() => {
+    tempsRestant--;
+    afficherChrono();
+    if (tempsRestant <= 0) {
+        clearInterval(interval);
+        alert('⏰ Temps écoulé ! Ta réponse va être envoyée.');
+        form.submit();
+    }
+}, 1000);
+
+const ta = document.getElementById('reponse_client');
+const compteur = document.getElementById('compteur');
+ta.addEventListener('input', () => {
+    compteur.textContent = ta.value.length;
+});
+
+window.addEventListener('beforeunload', e => {
+    e.preventDefault();
+    e.returnValue = '';
+});
+
+let sorties = 0;
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        sorties++;
+        if (sorties === 2) {
+            alert('⚠️ Tu as quitté l\'onglet 2 fois. Reste concentré.');
+        }
+    }
+});
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+</script>
+{% endblock %}

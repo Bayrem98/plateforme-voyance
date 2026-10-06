@@ -340,3 +340,30 @@ body {
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+.chrono-display {
+    background: rgba(0,0,0,0.3);
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+/* Barre de progression des cartes */
+.progress {
+    background-color: #e9ecef;
+    border-radius: 10px;
+}
+
+/* Carte validée */
+.valide-card {
+    border: 3px solid #4caf50 !important;
+}
+
+/* Statut de la carte dans carte_tarot_detail */
+.carte-statut {
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 10px;
+}

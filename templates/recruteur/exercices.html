@@ -45,7 +45,7 @@
           </div>
         {% endif %}
 
-        <a href="{{ url_for('passer_exercice', exercice_id=ex.id) }}"
+        <a href="{{ url_for('passer_test', exercice_id=ex.id) }}"
            class="btn btn-sm {% if rep %}btn-outline-primary{% else %}btn-primary{% endif %}">
           {% if rep %}Voir / Modifier{% else %}Commencer{% endif %}
         </a>

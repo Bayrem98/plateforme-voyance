@@ -7,7 +7,7 @@ from datetime import datetime
 
 from config import Config
 from models import (db, User, Theme, Formation, Question, Tentative,
-                    Exercice, ReponseExercice)
+                    Exercice, ReponseExercice, CarteValidee)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -40,49 +40,92 @@ def role_required(*roles):
 
 
 # ============================================================
-#   PROGRESSION (Tarot de Marseille)
+#   PROGRESSION — Logique de déblocage par carte
 # ============================================================
 
-def progression_tarot(user_id, theme_id):
+def calculer_progression_tarot(user_id, theme_id):
     """
-    Retourne la liste des cartes avec état (débloqué / validé).
-    Chaque carte = {niveau, formation, exercices, reponses, debloque, valide}
+    Calcule l'état complet des cartes pour un utilisateur.
+    La carte est validée si TOUS les exercices sont faits ET la moyenne >= 10.
     """
+    # Récupérer toutes les formations (cartes) triées
     formations = Formation.query.filter_by(theme_id=theme_id)\
                                 .order_by(Formation.ordre).all()
-    exercices = Exercice.query.filter_by(theme_id=theme_id)\
-                              .order_by(Exercice.niveau, Exercice.ordre).all()
+    
+    # Récupérer tous les exercices du thème, groupés par niveau
+    exercices_all = Exercice.query.filter_by(theme_id=theme_id)\
+                                  .order_by(Exercice.niveau, Exercice.ordre).all()
+    
+    ex_par_niveau = {}
+    for ex in exercices_all:
+        niv = ex.niveau or 1
+        ex_par_niveau.setdefault(niv, []).append(ex)
+    
+    # Récupérer les réponses de ce user
     mes_rep = {r.exercice_id: r for r in
                ReponseExercice.query.filter_by(user_id=user_id).all()}
-
-    niveaux = {}
-    for f in formations:
-        niveaux.setdefault(f.ordre, {})['formation'] = f
-    for ex in exercices:
-        niv = ex.niveau or 1
-        niveaux.setdefault(niv, {}).setdefault('exercices', []).append(ex)
-
+    
+    # Récupérer les cartes validées
+    cartes_val = {cv.niveau: cv for cv in
+                  CarteValidee.query.filter_by(
+                      user_id=user_id, theme_id=theme_id).all()}
+    
     resultat = []
-    precedent_valide = True
-    for niv in sorted(niveaux.keys()):
-        info = niveaux[niv]
-        exs = info.get('exercices', [])
+    precedent_valide = True  # Carte 1 toujours débloquée
+    
+    for f in formations:
+        niv = f.ordre
+        exs = ex_par_niveau.get(niv, [])
         reps = {ex.id: mes_rep[ex.id] for ex in exs if ex.id in mes_rep}
-
-        tous_valides = bool(exs) and all(
-            reps.get(ex.id) and reps[ex.id].valide for ex in exs
-        )
-
+        
+        # Combien de réponses ont été données ?
+        nb_faits = len(reps)
+        nb_total = len(exs)
+        tous_faits = (nb_faits == nb_total and nb_total > 0)
+        
+        # Moyenne des notes
+        notes = [r.note for r in reps.values() if r.note is not None]
+        moyenne = round(sum(notes) / len(notes), 2) if notes else None
+        
+        # 🎯 Validation : tous les exercices faits ET moyenne >= 10
+        tous_valides = (tous_faits 
+                        and moyenne is not None 
+                        and moyenne >= 10)
+        
+        # Carte validée
+        carte_validee = cartes_val.get(niv)
+        valide = tous_valides
+        
+        # Sauvegarder dans CarteValidee si validée et pas encore enregistrée
+        if valide and not carte_validee:
+            carte_validee = CarteValidee(
+                user_id=user_id,
+                theme_id=theme_id,
+                niveau=niv,
+                moyenne=moyenne,
+                validee=True
+            )
+            db.session.add(carte_validee)
+            db.session.commit()
+        
         resultat.append({
             'niveau': niv,
-            'formation': info.get('formation'),
+            'formation': f,
             'exercices': exs,
             'reponses': reps,
+            'nb_faits': nb_faits,
+            'nb_total': nb_total,
+            'tous_faits': tous_faits,
+            'tous_valides': tous_valides,
+            'moyenne': moyenne,
             'debloque': precedent_valide,
-            'valide': tous_valides,
+            'valide': valide,
+            'carte_validee': carte_validee,
         })
-        precedent_valide = tous_valides
-
+        
+        # La carte suivante est débloquée si celle-ci est validée
+        precedent_valide = valide
+    
     return resultat
 
 
@@ -148,7 +191,7 @@ def recruteur_dashboard():
 
 
 # ============================================================
-#   TAROT DE MARSEILLE — Système de cartes progressives
+#   TAROT — Cartes progressives
 # ============================================================
 
 @app.route('/cartes-tarot/<int:theme_id>')
@@ -162,7 +205,7 @@ def cartes_tarot(theme_id):
         flash("Cette page est réservée au Tarot de Marseille.", "warning")
         return redirect(url_for('recruteur_dashboard'))
 
-    cartes = progression_tarot(current_user.id, theme_id)
+    cartes = calculer_progression_tarot(current_user.id, theme_id)
     return render_template('recruteur/cartes_tarot.html',
                            theme=theme, cartes=cartes)
 
@@ -179,17 +222,154 @@ def voir_carte_tarot(formation_id):
         return redirect(url_for('voir_formation', theme_id=theme.id))
 
     # Vérifier le déblocage
-    cartes = progression_tarot(current_user.id, theme.id)
+    cartes = calculer_progression_tarot(current_user.id, theme.id)
     carte = next((c for c in cartes if c['niveau'] == formation.ordre), None)
 
     if not carte or not carte['debloque']:
-        flash(f"🔒 Termine d'abord la carte précédente.", "warning")
+        flash("🔒 Termine d'abord la carte précédente.", "warning")
         return redirect(url_for('cartes_tarot', theme_id=theme.id))
 
     return render_template('recruteur/carte_tarot_detail.html',
                            theme=theme, formation=formation,
+                           carte=carte,
                            exercices=carte['exercices'],
                            mes_reponses=carte['reponses'])
+
+
+@app.route('/carte-tarot/<int:theme_id>/refaire/<int:niveau>')
+@login_required
+@role_required('recruteur')
+def refaire_carte(theme_id, niveau):
+    """
+    Permet de refaire tous les exercices d'une carte.
+    Supprime toutes les réponses du user pour les exercices de cette carte.
+    """
+    theme = Theme.query.get_or_404(theme_id)
+    
+    if theme.nom != 'Tarot de Marseille':
+        return redirect(url_for('recruteur_dashboard'))
+    
+    # Récupérer les exercices de cette carte
+    exercices = Exercice.query.filter_by(
+        theme_id=theme_id, niveau=niveau
+    ).all()
+    
+    ids_exercices = [ex.id for ex in exercices]
+    
+    # Supprimer les réponses du user pour ces exercices
+    ReponseExercice.query.filter(
+        ReponseExercice.user_id == current_user.id,
+        ReponseExercice.exercice_id.in_(ids_exercices)
+    ).delete(synchronize_session=False)
+    
+    # Supprimer aussi la CarteValidee si elle existe
+    CarteValidee.query.filter_by(
+        user_id=current_user.id, theme_id=theme_id, niveau=niveau
+    ).delete()
+    
+    db.session.commit()
+    
+    flash(f"♻️ Carte {niveau} réinitialisée. Tu peux refaire les tests.", "info")
+    return redirect(url_for('voir_carte_tarot', formation_id=Formation.query.filter_by(
+        theme_id=theme_id, ordre=niveau).first().id))
+
+
+# ============================================================
+#   TEST — Mode examen avec correction IA
+# ============================================================
+
+@app.route('/test/<int:exercice_id>', methods=['GET', 'POST'])
+@login_required
+@role_required('recruteur')
+def passer_test(exercice_id):
+    """Mode EXAMEN : formation masquée, chrono, correction IA."""
+    ex = Exercice.query.get_or_404(exercice_id)
+
+    # Vérifier déblocage pour le Tarot
+    if ex.theme.nom == 'Tarot de Marseille':
+        cartes = calculer_progression_tarot(current_user.id, ex.theme_id)
+        carte = next((c for c in cartes if c['niveau'] == ex.niveau), None)
+        if not carte or not carte['debloque']:
+            flash("🔒 Ce test est verrouillé.", "warning")
+            return redirect(url_for('cartes_tarot', theme_id=ex.theme_id))
+
+    # Vérifier si déjà validé
+    deja = ReponseExercice.query.filter_by(
+        exercice_id=exercice_id, user_id=current_user.id
+    ).first()
+
+    if deja and deja.valide:
+        flash("✅ Tu as déjà validé ce test.", "info")
+        if ex.theme.nom == 'Tarot de Marseille':
+            return redirect(url_for('voir_carte_tarot',
+                                    formation_id=Formation.query.filter_by(
+                                        theme_id=ex.theme_id,
+                                        ordre=ex.niveau).first().id))
+        return redirect(url_for('liste_exercices', theme_id=ex.theme_id))
+
+    if request.method == 'GET':
+        session[f'test_debut_{exercice_id}'] = datetime.utcnow().timestamp()
+        return render_template('recruteur/test_examen.html', ex=ex)
+
+    # POST : correction IA
+    debut_ts = session.get(f'test_debut_{exercice_id}', 0)
+    duree = int(datetime.utcnow().timestamp() - debut_ts) if debut_ts else 0
+
+    reponse_txt = request.form.get('reponse_client', '').strip()
+    explication_txt = request.form.get('explication', '').strip()
+
+    if not reponse_txt:
+        flash("⚠️ Tu dois rédiger une réponse.", "warning")
+        return redirect(url_for('passer_test', exercice_id=exercice_id))
+
+    # Correction IA
+    from ia_service import corriger_reponse
+    resultat_ia = corriger_reponse(
+        question=ex.enonce,
+        mots_cles=ex.mots_cles or '',
+        reponse_attendue=ex.reponse_attendue or '',
+        reponse_recruteur=reponse_txt,
+        explication_recruteur=explication_txt
+    )
+
+    note = resultat_ia['note']
+    hors_sujet = resultat_ia.get('hors_sujet', False)
+    
+    # 🔒 Si hors-sujet → note plafonnée à 3 (sécurité)
+    if hors_sujet and note > 3:
+        note = 3
+    
+    valide = (note >= 10)
+
+    if not deja:
+        deja = ReponseExercice(exercice_id=exercice_id, user_id=current_user.id)
+        db.session.add(deja)
+
+    deja.reponse_client = reponse_txt
+    deja.explication = explication_txt
+    deja.note = note
+    deja.commentaire_ia = resultat_ia.get('commentaire', '')
+    deja.statut = 'corrige'
+    deja.valide = valide
+    deja.duree_secondes = duree
+    deja.corrige_par_ia = True
+    deja.date_soumission = datetime.utcnow()
+    deja.date_correction = datetime.utcnow()
+    db.session.commit()
+
+    session.pop(f'test_debut_{exercice_id}', None)
+
+    # Recalculer la progression de la carte
+    carte_info = None
+    if ex.theme.nom == 'Tarot de Marseille':
+        cartes = calculer_progression_tarot(current_user.id, ex.theme_id)
+        carte_info = next((c for c in cartes if c['niveau'] == ex.niveau), None)
+
+    return render_template('recruteur/resultat_test.html',
+                           ex=ex, note=note, valide=valide, duree=duree,
+                           resultat=resultat_ia,
+                           reponse_recruteur=reponse_txt,
+                           carte_info=carte_info)
 
 
 # ============================================================
@@ -202,31 +382,13 @@ def voir_carte_tarot(formation_id):
 def voir_formation(theme_id):
     theme = Theme.query.get_or_404(theme_id)
 
-    # Si c'est le Tarot, rediriger vers la vue cartes
-    if theme.nom == 'Tarot de Marseille':
-        if current_user.role == 'recruteur':
-            return redirect(url_for('cartes_tarot', theme_id=theme_id))
+    if theme.nom == 'Tarot de Marseille' and current_user.role == 'recruteur':
+        return redirect(url_for('cartes_tarot', theme_id=theme_id))
 
     formations = Formation.query.filter_by(theme_id=theme_id)\
                                 .order_by(Formation.ordre).all()
     return render_template('recruteur/formation.html',
                            theme=theme, formations=formations)
-
-
-@app.route('/formation-carte/<int:formation_id>')
-@login_required
-@role_required('recruteur', 'formateur', 'admin')
-def lire_formation_carte(formation_id):
-    f = Formation.query.get_or_404(formation_id)
-
-    if current_user.role == 'recruteur' and f.theme.nom == 'Tarot de Marseille':
-        cartes = progression_tarot(current_user.id, f.theme_id)
-        carte = next((c for c in cartes if c['niveau'] == f.ordre), None)
-        if not carte or not carte['debloque']:
-            flash("🔒 Cette carte est verrouillée.", "warning")
-            return redirect(url_for('cartes_tarot', theme_id=f.theme_id))
-
-    return render_template('recruteur/formation_detail.html', formation=f)
 
 
 # ============================================================
@@ -239,7 +401,6 @@ def lire_formation_carte(formation_id):
 def liste_exercices(theme_id):
     theme = Theme.query.get_or_404(theme_id)
 
-    # Rediriger vers les cartes si c'est le Tarot
     if theme.nom == 'Tarot de Marseille':
         return redirect(url_for('cartes_tarot', theme_id=theme_id))
 
@@ -251,50 +412,6 @@ def liste_exercices(theme_id):
     return render_template('recruteur/exercices.html',
                            theme=theme, exercices=exercices,
                            mes_reponses=mes_reponses)
-
-
-@app.route('/exercice/<int:exercice_id>', methods=['GET', 'POST'])
-@login_required
-@role_required('recruteur')
-def passer_exercice(exercice_id):
-    ex = Exercice.query.get_or_404(exercice_id)
-
-    # Vérifier déblocage si c'est le Tarot
-    if ex.theme.nom == 'Tarot de Marseille':
-        cartes = progression_tarot(current_user.id, ex.theme_id)
-        carte = next((c for c in cartes if c['niveau'] == ex.niveau), None)
-        if not carte or not carte['debloque']:
-            flash("🔒 Ce niveau est verrouillé.", "warning")
-            return redirect(url_for('cartes_tarot', theme_id=ex.theme_id))
-
-    reponse = ReponseExercice.query.filter_by(
-        exercice_id=exercice_id, user_id=current_user.id
-    ).first()
-
-    if request.method == 'POST':
-        if not reponse:
-            reponse = ReponseExercice(
-                exercice_id=exercice_id,
-                user_id=current_user.id
-            )
-            db.session.add(reponse)
-
-        reponse.reponse_client = request.form.get('reponse_client')
-        reponse.explication = request.form.get('explication')
-        reponse.statut = 'en_attente'
-        reponse.date_soumission = datetime.utcnow()
-        db.session.commit()
-
-        flash("✅ Réponse envoyée ! Ton formateur va la corriger.", "success")
-
-        if ex.theme.nom == 'Tarot de Marseille':
-            return redirect(url_for('voir_carte_tarot',
-                                    formation_id=ex.theme.formations[0].id
-                                    if ex.theme.formations else 0))
-        return redirect(url_for('liste_exercices', theme_id=ex.theme_id))
-
-    return render_template('recruteur/exercice_detail.html',
-                           ex=ex, reponse=reponse)
 
 
 # ============================================================
@@ -345,14 +462,11 @@ def corriger_reponse(rep_id):
         rep.commentaire_formateur = request.form.get('commentaire')
         rep.statut = 'corrige'
         rep.valide = (rep.note >= 10)
+        rep.corrige_par_ia = False
         rep.date_correction = datetime.utcnow()
         db.session.commit()
 
-        if rep.valide:
-            flash(f"✅ Note {rep.note}/20 — Niveau suivant débloqué !", "success")
-        else:
-            flash(f"⚠️ Note {rep.note}/20 — L'élève doit refaire ce niveau.", "warning")
-
+        flash(f"✅ Note {rep.note}/20 enregistrée.", "success")
         return redirect(url_for('formateur_corrections'))
 
     return render_template('formateur/correction_detail.html', rep=rep)
@@ -402,8 +516,7 @@ def admin_create_user():
         return redirect(url_for('admin_users'))
 
     user = User(
-        username=username,
-        email=email,
+        username=username, email=email,
         password=generate_password_hash(password),
         role=role,
         formateur_id=int(formateur_id) if formateur_id else None
@@ -429,12 +542,12 @@ def admin_toggle_user(uid):
 @role_required('admin')
 def admin_themes():
     if request.method == 'POST':
-        nom = request.form.get('nom')
-        description = request.form.get('description')
-        icone = request.form.get('icone', 'bi-book')
-        couleur = request.form.get('couleur', '#6f42c1')
-        db.session.add(Theme(nom=nom, description=description,
-                             icone=icone, couleur=couleur))
+        db.session.add(Theme(
+            nom=request.form.get('nom'),
+            description=request.form.get('description'),
+            icone=request.form.get('icone', 'bi-book'),
+            couleur=request.form.get('couleur', '#6f42c1')
+        ))
         db.session.commit()
         flash("Thème créé.", "success")
         return redirect(url_for('admin_themes'))
@@ -524,10 +637,6 @@ def admin_delete_exercice(ex_id):
     flash("🗑️ Exercice supprimé.", "success")
     return redirect(url_for('admin_exercices'))
 
-
-# ============================================================
-#   INIT
-# ============================================================
 
 if __name__ == '__main__':
     with app.app_context():

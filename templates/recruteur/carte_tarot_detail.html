@@ -6,6 +6,7 @@
 </a>
 
 <div class="row">
+  {# Colonne gauche : image + statut #}
   <div class="col-md-4 mb-4">
     <div class="card shadow-sm border-0 sticky-top" style="top: 20px;">
       {% if formation.image %}
@@ -16,11 +17,33 @@
       <div class="card-body text-center">
         <h5>{{ formation.titre }}</h5>
         <span class="badge bg-dark">Carte {{ formation.ordre }}/22</span>
+
+        {% if carte.valide %}
+          <div class="alert alert-success mt-3 mb-0">
+            <i class="bi bi-check-circle-fill"></i>
+            <strong>Carte validée !</strong><br>
+            Moyenne : <strong>{{ carte.moyenne }}/20</strong>
+          </div>
+        {% elif carte.tous_faits %}
+          <div class="alert alert-warning mt-3 mb-0">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>Moyenne insuffisante</strong><br>
+            {{ carte.moyenne }}/20 — Il faut ≥ 10/20
+          </div>
+        {% else %}
+          <div class="alert alert-info mt-3 mb-0">
+            <i class="bi bi-hourglass-split"></i>
+            Progression : <strong>{{ carte.nb_faits }}/{{ carte.nb_total }}</strong>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>
 
+  {# Colonne droite : formation + exercices #}
   <div class="col-md-8">
+
+    {# Formation #}
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header text-white" style="background: {{ theme.couleur }};">
         <i class="bi bi-book"></i> Formation
@@ -30,7 +53,29 @@
       </div>
     </div>
 
+    {# Exercices #}
     <h4><i class="bi bi-journal-check"></i> Exercices pratiques</h4>
+
+    {% if carte.tous_faits and not carte.valide %}
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Moyenne insuffisante ({{ carte.moyenne }}/20).</strong><br>
+        Tu dois refaire tous les exercices pour débloquer la carte suivante.
+        <div class="mt-2">
+          <a href="{{ url_for('refaire_carte', theme_id=theme.id, niveau=formation.ordre) }}"
+             class="btn btn-warning btn-sm"
+             onclick="return confirm('⚠️ Toutes tes réponses seront effacées. Recommencer ?')">
+            <i class="bi bi-arrow-clockwise"></i> Refaire tous les tests
+          </a>
+        </div>
+      </div>
+    {% elif carte.valide %}
+      <div class="alert alert-success">
+        <i class="bi bi-trophy-fill"></i>
+        <strong>Bravo ! Tu as validé cette carte.</strong><br>
+        La carte suivante est débloquée ✅
+      </div>
+    {% endif %}
 
     {% if exercices %}
     <div class="row g-3">
@@ -39,8 +84,15 @@
         <div class="col-md-6">
           <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
-              <div class="d-flex justify-content-between mb-2">
-                <h6 class="mb-0">📝 {{ ex.titre }}</h6>
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h6 class="mb-1">🎴 {{ formation.titre }}</h6>
+                  {% if ex.domaine %}
+                    <span class="badge bg-info text-dark">
+                      <i class="bi bi-tag"></i> {{ ex.domaine }}
+                    </span>
+                  {% endif %}
+                </div>
                 {% if rep and rep.statut == 'corrige' %}
                   <span class="badge {% if rep.valide %}bg-success{% else %}bg-danger{% endif %}">
                     {{ rep.note }}/20
@@ -52,12 +104,6 @@
                 {% endif %}
               </div>
 
-              {% if ex.domaine %}
-                <span class="badge bg-info text-dark mb-2">{{ ex.domaine }}</span>
-              {% endif %}
-
-              <p class="small text-muted mb-2">{{ ex.enonce|truncate(80) }}</p>
-
               {% if ex.mots_cles %}
                 <div class="mb-2 small">
                   🔑
@@ -67,9 +113,17 @@
                 </div>
               {% endif %}
 
-              <a href="{{ url_for('passer_exercice', exercice_id=ex.id) }}"
-                 class="btn btn-sm w-100 {% if rep %}btn-outline-primary{% else %}btn-primary{% endif %}">
-                {% if rep %}Voir / Modifier{% else %}Commencer{% endif %}
+              <a href="{{ url_for('passer_test', exercice_id=ex.id) }}"
+                 class="btn btn-sm w-100 mt-2 {% if rep %}btn-outline-primary{% else %}btn-primary{% endif %}">
+                {% if rep %}
+                  {% if rep.valide %}
+                    <i class="bi bi-eye"></i> Revoir
+                  {% else %}
+                    <i class="bi bi-arrow-clockwise"></i> Refaire
+                  {% endif %}
+                {% else %}
+                  <i class="bi bi-play-circle"></i> Commencer
+                {% endif %}
               </a>
             </div>
           </div>
@@ -79,6 +133,7 @@
     {% else %}
     <div class="alert alert-info">Aucun exercice pour cette carte.</div>
     {% endif %}
+
   </div>
 </div>
 {% endblock %}

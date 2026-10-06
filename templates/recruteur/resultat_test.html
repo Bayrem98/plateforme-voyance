@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width: 900px;">
+
+  <div class="card shadow-lg border-0 mb-4 text-center">
+    <div class="card-body py-5">
+      {% if valide %}
+        <div class="display-1 text-success"><i class="bi bi-check-circle-fill"></i></div>
+        <h2 class="text-success">Bravo ! 🎉</h2>
+        <p class="lead">Tu as réussi ce test.</p>
+      {% else %}
+        <div class="display-1 text-danger"><i class="bi bi-x-circle-fill"></i></div>
+        <h2 class="text-danger">Presque !</h2>
+        <p class="lead">Il faut au moins 10/20 pour valider ce test.</p>
+      {% endif %}
+
+      <div class="display-3 fw-bold mt-3
+                  {% if note >= 14 %}text-success
+                  {% elif note >= 10 %}text-warning
+                  {% else %}text-danger{% endif %}">
+        {{ note }}/20
+      </div>
+
+      <p class="text-muted">
+        <i class="bi bi-stopwatch"></i> Durée : {{ duree // 60 }}min {{ duree % 60 }}s
+        • <i class="bi bi-robot"></i> Corrigé par IA
+      </p>
+    </div>
+  </div>
+
+  {# 🔑 Si Tarot : afficher l'état de la carte #}
+  {% if carte_info %}
+    <div class="alert {% if carte_info.valide %}alert-success{% elif carte_info.tous_faits %}alert-warning{% else %}alert-info{% endif %}">
+      <h5 class="mb-2">
+        <i class="bi bi-{% if carte_info.valide %}trophy-fill{% elif carte_info.tous_faits %}exclamation-triangle-fill{% else %}info-circle{% endif %}"></i>
+        Progression de la carte : {{ carte_info.nb_faits }}/{{ carte_info.nb_total }}
+      </h5>
+      {% if carte_info.moyenne %}
+        <p class="mb-2">Moyenne actuelle : <strong>{{ carte_info.moyenne }}/20</strong></p>
+      {% endif %}
+
+      {% if carte_info.valide %}
+        <p class="mb-0">
+          ✅ <strong>Tous les exercices sont validés !</strong>
+          Tu peux passer à la carte suivante.
+        </p>
+      {% elif carte_info.tous_faits and carte_info.moyenne and carte_info.moyenne < 10 %}
+        <p class="mb-0">
+          ⚠️ <strong>Moyenne insuffisante.</strong>
+          Il faut ≥ 10/20 pour débloquer la carte suivante.
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# Feedback IA #}
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-dark text-white">
+      <i class="bi bi-robot"></i> Feedback de l'IA
+    </div>
+    <div class="card-body">
+      <p class="mb-3">{{ resultat.commentaire }}</p>
+
+      <div class="row">
+        {% if resultat.points_forts %}
+        <div class="col-md-6 mb-3">
+          <h6 class="text-success"><i class="bi bi-check-circle"></i> Points forts</h6>
+          <ul class="small mb-0">
+            {% for p in resultat.points_forts %}<li>{{ p }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if resultat.points_faibles %}
+        <div class="col-md-6 mb-3">
+          <h6 class="text-danger"><i class="bi bi-exclamation-circle"></i> À améliorer</h6>
+          <ul class="small mb-0">
+            {% for p in resultat.points_faibles %}<li>{{ p }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if resultat.mots_cles_utilises or resultat.mots_cles_manquants %}
+      <hr>
+      <h6>Mots-clés :</h6>
+      {% for m in resultat.mots_cles_utilises %}
+        <span class="badge bg-success me-1">✅ {{ m }}</span>
+      {% endfor %}
+      {% for m in resultat.mots_cles_manquants %}
+        <span class="badge bg-danger me-1">❌ {{ m }}</span>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# Ta réponse #}
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-primary text-white">
+      <i class="bi bi-pencil"></i> Ta réponse
+    </div>
+    <div class="card-body">
+      <p>{{ reponse_recruteur }}</p>
+    </div>
+  </div>
+
+  {# Actions #}
+  <div class="text-center my-4">
+    {% if ex.theme.nom == 'Tarot de Marseille' %}
+      <a href="{{ url_for('voir_carte_tarot', formation_id=ex.theme.formations[0].id) if not ex.theme.formations else url_for('cartes_tarot', theme_id=ex.theme_id) }}"
+         class="btn btn-primary btn-lg"
+         onclick="event.preventDefault(); window.location.href='{{ url_for('cartes_tarot', theme_id=ex.theme_id) }}';">
+        <i class="bi bi-arrow-left"></i> Retour à la carte
+      </a>
+    {% else %}
+      <a href="{{ url_for('liste_exercices', theme_id=ex.theme_id) }}"
+         class="btn btn-primary btn-lg">
+        <i class="bi bi-arrow-left"></i> Retour aux exercices
+      </a>
+    {% endif %}
+
+    {% if not valide %}
+      <a href="{{ url_for('passer_test', exercice_id=ex.id) }}"
+         class="btn btn-warning btn-lg">
+        <i class="bi bi-arrow-clockwise"></i> Refaire ce test
+      </a>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

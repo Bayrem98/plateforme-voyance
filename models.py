@@ -19,6 +19,8 @@ class User(UserMixin, db.Model):
     formateur = db.relationship('User', remote_side=[id], backref='recruteurs')
     tentatives = db.relationship('Tentative', backref='user', lazy=True)
     reponses_exercices = db.relationship('ReponseExercice', backref='user', lazy=True)
+    cartes_validees = db.relationship('CarteValidee', backref='user', lazy=True,
+                                     cascade='all, delete-orphan')
 
 
 class Theme(db.Model):
@@ -44,7 +46,7 @@ class Formation(db.Model):
     titre = db.Column(db.String(200), nullable=False)
     contenu = db.Column(db.Text, nullable=False)
     image = db.Column(db.String(200))
-    definition = db.Column(db.Text)        # 🆕 petite définition pour les cartes
+    definition = db.Column(db.Text)
     ordre = db.Column(db.Integer, default=1)
     theme_id = db.Column(db.Integer, db.ForeignKey('themes.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -83,7 +85,7 @@ class Exercice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titre = db.Column(db.String(200), nullable=False)
     domaine = db.Column(db.String(50))
-    niveau = db.Column(db.Integer, default=1)
+    niveau = db.Column(db.Integer, default=1)   # ← numéro de carte (1 à 22)
     enonce = db.Column(db.Text, nullable=False)
     donnees = db.Column(db.Text)
     mots_cles = db.Column(db.Text)
@@ -105,7 +107,31 @@ class ReponseExercice(db.Model):
     explication = db.Column(db.Text)
     note = db.Column(db.Integer)
     commentaire_formateur = db.Column(db.Text)
+    commentaire_ia = db.Column(db.Text)
     statut = db.Column(db.String(20), default='en_attente')
     valide = db.Column(db.Boolean, default=False)
+    duree_secondes = db.Column(db.Integer)
+    corrige_par_ia = db.Column(db.Boolean, default=False)
     date_soumission = db.Column(db.DateTime, default=datetime.utcnow)
     date_correction = db.Column(db.DateTime)
+
+
+class CarteValidee(db.Model):
+    """🆕 Marque qu'un recruteur a validé une carte (niveau) entière.
+    
+    Une carte est validée quand TOUS ses exercices sont validés
+    ET que la moyenne des notes est >= 10/20.
+    """
+    __tablename__ = 'cartes_validees'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    theme_id = db.Column(db.Integer, db.ForeignKey('themes.id'), nullable=False)
+    niveau = db.Column(db.Integer, nullable=False)      # numéro de carte
+    moyenne = db.Column(db.Float)                        # moyenne des notes
+    validee = db.Column(db.Boolean, default=False)       # True si ≥ 10
+    date_validation = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'theme_id', 'niveau',
+                            name='unique_carte_par_user'),
+    )

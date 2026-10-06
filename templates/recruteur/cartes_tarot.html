@@ -7,10 +7,17 @@
 <h2 style="color: {{ theme.couleur }};">
   <i class="bi {{ theme.icone }}"></i> {{ theme.nom }} — Les 22 Arcanes
 </h2>
-<p class="text-muted">
-  🔓 Réussis une carte (note ≥ 10/20) pour débloquer la suivante.
-</p>
-<hr>
+
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i>
+  <strong>Comment progresser :</strong>
+  <ul class="mb-0 mt-2">
+    <li>Ouvre une carte → lis la formation</li>
+    <li>Fais <strong>tous les exercices</strong> de la carte</li>
+    <li>Si la <strong>moyenne ≥ 10/20</strong> → la carte suivante se débloque ✅</li>
+    <li>Sinon → tu dois <strong>refaire les tests</strong> de la carte ❌</li>
+  </ul>
+</div>
 
 <div class="row g-4">
 {% for c in cartes %}
@@ -27,7 +34,11 @@
         </div>
       {% elif c.valide %}
         <span class="badge bg-success position-absolute top-0 end-0 m-2">
-          <i class="bi bi-check-circle"></i> Validé
+          <i class="bi bi-check-circle"></i> Validé ({{ c.moyenne }}/20)
+        </span>
+      {% elif c.tous_faits %}
+        <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-2">
+          Moyenne : {{ c.moyenne }}/20
         </span>
       {% endif %}
 
@@ -50,25 +61,40 @@
         </h6>
 
         {% if f and f.definition %}
-          <p class="carte-definition small text-muted mb-3">
-            {{ f.definition[:110] }}{% if f.definition|length > 110 %}…{% endif %}
+          <p class="carte-definition small text-muted mb-2">
+            {{ f.definition[:100] }}{% if f.definition|length > 100 %}…{% endif %}
           </p>
         {% endif %}
 
-        {% if c.debloque and f %}
-          <a href="{{ url_for('voir_carte_tarot', formation_id=f.id) }}"
-             class="btn btn-sm {% if c.valide %}btn-success{% else %}btn-primary{% endif %} w-100">
-            {% if c.valide %}
-              <i class="bi bi-eye"></i> Revoir
-            {% else %}
-              <i class="bi bi-play-circle"></i> Ouvrir
-            {% endif %}
-          </a>
-        {% else %}
-          <button class="btn btn-sm btn-secondary w-100" disabled>
-            <i class="bi bi-lock"></i> Verrouillé
-          </button>
+        {# Barre de progression des exercices #}
+        {% if c.debloque %}
+          <div class="progress mb-2" style="height: 8px;">
+            <div class="progress-bar bg-{% if c.valide %}success{% else %}primary{% endif %}"
+                 style="width: {{ (c.nb_faits / c.nb_total * 100) if c.nb_total > 0 else 0 }}%"></div>
+          </div>
+          <small class="text-muted">
+            {{ c.nb_faits }} / {{ c.nb_total }} exercices faits
+          </small>
         {% endif %}
+
+        <div class="mt-2">
+          {% if c.debloque and f %}
+            <a href="{{ url_for('voir_carte_tarot', formation_id=f.id) }}"
+               class="btn btn-sm {% if c.valide %}btn-success{% else %}btn-primary{% endif %} w-100">
+              {% if c.valide %}
+                <i class="bi bi-eye"></i> Revoir
+              {% elif c.tous_faits %}
+                <i class="bi bi-arrow-right"></i> Voir résultat
+              {% else %}
+                <i class="bi bi-play-circle"></i> Ouvrir
+              {% endif %}
+            </a>
+          {% else %}
+            <button class="btn btn-sm btn-secondary w-100" disabled>
+              <i class="bi bi-lock"></i> Verrouillé
+            </button>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
