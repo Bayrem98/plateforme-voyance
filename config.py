@@ -6,7 +6,13 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'change-moi-en-prod-super-secret')
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///database.db'
+    
+    # ⚠️ Neon fournit une URL en postgresql://, mais SQLAlchemy attend postgresql+psycopg2://
+    _db_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
+    if _db_url and _db_url.startswith('postgresql://'):
+        _db_url = _db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+    SQLALCHEMY_DATABASE_URI = _db_url
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ========== EMAIL (Gmail) ==========
