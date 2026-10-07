@@ -134,6 +134,33 @@ def verifier_fin_formation(user_id):
 #   AUTH
 # ============================================================
 
+@app.route('/debug-db')
+def debug_db():
+    """Route temporaire pour vérifier la connexion à la BDD."""
+    import os
+    from models import db, Theme, Formation, User
+    
+    db_url = os.environ.get('DATABASE_URL', 'NOT SET')
+    # Masquer le mot de passe
+    if '@' in db_url:
+        parts = db_url.split('@')
+        prefix = parts[0].split('://')[0] + '://***:***'
+        db_url_masked = prefix + '@' + parts[1]
+    else:
+        db_url_masked = db_url
+    
+    return f"""
+    <h2>🔍 Debug BDD</h2>
+    <p><strong>DATABASE_URL :</strong> {db_url_masked}</p>
+    <p><strong>Thèmes :</strong> {Theme.query.count()}</p>
+    <p><strong>Formations :</strong> {Formation.query.count()}</p>
+    <p><strong>Utilisateurs :</strong> {User.query.count()}</p>
+    <p><strong>Thèmes en base :</strong></p>
+    <ul>
+    {''.join(f'<li>{t.nom} : {len(t.formations)} formations</li>' for t in Theme.query.all())}
+    </ul>
+    """
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
