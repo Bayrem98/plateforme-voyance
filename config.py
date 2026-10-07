@@ -5,7 +5,7 @@ load_dotenv()
 
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'change-moi-en-prod-super-secret')
+    SECRET_KEY = os.environ.get('SECRET_KEY', '25ebef9b2cecd5a078f4e62d89f19fe3dcf0fb16ba1d9d2d503b1fe70ead909e')
 
     # Neon fournit une URL en postgresql://, SQLAlchemy attend postgresql+psycopg2://
     _db_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')

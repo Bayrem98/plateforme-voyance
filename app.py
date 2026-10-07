@@ -1171,16 +1171,59 @@ def admin_edit_user(uid):
 @role_required('admin')
 def admin_delete_user(uid):
     user = User.query.get_or_404(uid)
-
+    
+    # Empêcher l'admin de se supprimer lui-même
     if user.id == current_user.id:
         flash("❌ Tu ne peux pas te supprimer toi-même.", "danger")
         return redirect(url_for('admin_users'))
-
+    
+    # Empêcher la suppression d'un autre admin (sécurité)
+    if user.role == 'admin':
+        flash("❌ Tu ne peux pas supprimer un autre admin.", "danger")
+        return redirect(url_for('admin_users'))
+    
     username = user.username
-    db.session.delete(user)
-    db.session.commit()
-    flash(f"🗑️ Utilisateur {username} supprimé.", "success")
+    
+    try:
+        # Supprimer d'abord les dépendances
+        from models import ReponseExercice, CarteValidee, RendezVous
+        
+        # Supprimer les réponses de l'exercice
+        ReponseExercice.query.filter_by(user_id=user.id).delete()
+        
+        # Supprimer les cartes validées
+        CarteValidee.query.filter_by(user_id=user.id).delete()
+        
+        # Supprimer les RDV (candidat ET recruteur)
+        RendezVous.query.filter_by(candidat_id=user.id).delete()
+        RendezVous.query.filter_by(recruteur_id=user.id).delete()
+        
+        # Enfin, supprimer l'utilisateur
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f"🗑️ Utilisateur {username} supprimé.", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"⚠️  Erreur suppression : {e}")
+        flash(f"❌ Impossible de supprimer {username} : {str(e)[:100]}", "danger")
+    
     return redirect(url_for('admin_users'))
+
+# ============================================================
+#   GESTION DES ERREURS
+# ============================================================
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    flash("❌ Une erreur est survenue. Réessaie ou contacte l'administrateur.", "danger")
+    return redirect(url_for('dashboard'))
+
+@app.errorhandler(404)
+def not_found_error(error):
+    flash("❌ Page introuvable.", "warning")
+    return redirect(url_for('dashboard'))
 
 
 # ============================================================
