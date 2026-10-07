@@ -1,42 +1,113 @@
 {% extends "base.html" %}
 {% block content %}
-<h2><i class="bi bi-check2-square"></i> Corrections à faire</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-1"><i class="bi bi-check2-square"></i> Corrections à faire</h2>
+    <p class="text-muted mb-0">Réponses en attente de validation manuelle.</p>
+  </div>
+</div>
 <hr>
 
 {% set en_attente = reponses | selectattr('statut', 'equalto', 'en_attente') | list %}
 {% set corrigees = reponses | rejectattr('statut', 'equalto', 'en_attente') | list %}
 
-<h5>⏳ En attente ({{ en_attente|length }})</h5>
-<div class="row g-2 mb-4">
+{# Réponses en attente #}
+<h5 class="mb-3">
+  ⏳ En attente
+  <span class="badge bg-warning text-dark">{{ en_attente|length }}</span>
+</h5>
+
+<div class="row g-3 mb-4">
 {% for r in en_attente %}
   <div class="col-md-6">
-    <div class="card shadow-sm border-warning">
+    <div class="card shadow-sm border-0 border-start border-warning border-4">
       <div class="card-body">
-        <h6>{{ r.exercice.titre }}</h6>
-        <p class="small text-muted mb-1">Par <strong>{{ r.user.username }}</strong>
-          — {{ r.date_soumission.strftime('%d/%m/%Y %H:%M') }}</p>
-        <a href="{{ url_for('corriger_reponse', rep_id=r.id) }}"
-           class="btn btn-sm btn-warning">Corriger</a>
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="mb-0">
+            <i class="bi bi-journal-text"></i> {{ r.exercice.titre }}
+          </h6>
+          <span class="badge bg-secondary">
+            {{ r.exercice.theme.nom }}
+          </span>
+        </div>
+
+        <p class="small text-muted mb-2">
+          <i class="bi bi-person"></i> <strong>{{ r.user.username }}</strong>
+          <br>
+          <i class="bi bi-clock"></i> {{ r.date_soumission.strftime('%d/%m/%Y à %H:%M') }}
+        </p>
+
+        <p class="small mb-3">
+          <strong>Réponse :</strong>
+          {{ r.reponse_client|truncate(120) }}
+        </p>
+
+        <a href="{{ url_for('formateur_voir_reponse', rep_id=r.id) }}"
+           class="btn btn-warning btn-sm w-100">
+          <i class="bi bi-pencil-square"></i> Corriger maintenant
+        </a>
       </div>
     </div>
   </div>
 {% else %}
-  <div class="col-12"><div class="alert alert-info">Aucune correction en attente ✅</div></div>
+  <div class="col-12">
+    <div class="alert alert-success">
+      <i class="bi bi-check-circle-fill"></i> Aucune correction en attente ✅
+    </div>
+  </div>
 {% endfor %}
 </div>
 
-<h5>✅ Corrigées ({{ corrigees|length }})</h5>
-<div class="row g-2">
+{# Réponses déjà corrigées #}
+<h5 class="mb-3">
+  ✅ Corrigées
+  <span class="badge bg-success">{{ corrigees|length }}</span>
+</h5>
+
+<div class="row g-3">
 {% for r in corrigees %}
   <div class="col-md-6">
-    <div class="card shadow-sm">
+    <div class="card shadow-sm border-0
+                border-start {% if r.valide %}border-success{% else %}border-danger{% endif %} border-4">
       <div class="card-body">
-        <div class="d-flex justify-content-between">
-          <h6>{{ r.exercice.titre }}</h6>
-          <span class="badge bg-success">{{ r.note }}/20</span>
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="mb-0">
+            <i class="bi bi-journal-text"></i> {{ r.exercice.titre }}
+          </h6>
+          <span class="badge fs-6 {% if r.valide %}bg-success{% else %}bg-danger{% endif %}">
+            {{ r.note }}/20
+          </span>
         </div>
-        <p class="small text-muted mb-0">Par {{ r.user.username }}</p>
+
+        <p class="small text-muted mb-2">
+          <i class="bi bi-person"></i> <strong>{{ r.user.username }}</strong>
+          <br>
+          {% if r.corrige_par_ia %}
+            <i class="bi bi-robot"></i> Corrigé par IA
+          {% elif r.correcteur %}
+            <i class="bi bi-person-check"></i> 
+            Corrigé par <strong>{{ r.correcteur.username }}</strong>
+            {% if r.correcteur.role == 'admin' %}
+              <span class="badge bg-danger ms-1">admin</span>
+            {% endif %}
+            <br>
+            <small>{{ r.date_correction.strftime('%d/%m/%Y à %H:%M') if r.date_correction }}</small>
+          {% else %}
+            <i class="bi bi-person-check"></i> Corrigé manuellement
+          {% endif %}
+        </p>
+
+        <a href="{{ url_for('formateur_voir_reponse', rep_id=r.id) }}"
+           class="btn btn-outline-primary btn-sm w-100">
+          <i class="bi bi-eye"></i> Voir / Modifier
+        </a>
       </div>
+    </div>
+  </div>
+{% else %}
+  <div class="col-12">
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i> Aucune correction effectuée pour le moment.
     </div>
   </div>
 {% endfor %}

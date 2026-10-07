@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h2><i class="bi bi-pencil-square"></i> Modifier {{ user.username }}</h2>
+<hr>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <form method="POST">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Nom d'utilisateur *</label>
+              <input type="text" name="username" class="form-control"
+                     value="{{ user.username }}" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Email *</label>
+              <input type="email" name="email" class="form-control"
+                     value="{{ user.email }}" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">
+              Nouveau mot de passe
+              <small class="text-muted">(laisser vide pour ne pas changer)</small>
+            </label>
+            <input type="password" name="password" class="form-control"
+                   placeholder="Nouveau mot de passe…" minlength="6">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Rôle</label>
+            {% if user.id == current_user.id %}
+              <input type="text" class="form-control" value="{{ user.role }}" disabled>
+              <small class="text-muted">Tu ne peux pas changer ton propre rôle.</small>
+            {% else %}
+              <select name="role" class="form-select" id="roleSelect">
+                <option value="candidat" {% if user.role == 'candidat' %}selected{% endif %}>Candidat</option>
+                <option value="recruteur" {% if user.role == 'recruteur' %}selected{% endif %}>Recruteur</option>
+                <option value="formateur" {% if user.role == 'formateur' %}selected{% endif %}>Formateur</option>
+                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>SuperAdmin</option>
+              </select>
+            {% endif %}
+          </div>
+
+          <div class="row" id="assignationsDiv">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Formateur assigné</label>
+              <select name="formateur_id" class="form-select">
+                <option value="">— Aucun —</option>
+                {% for f in formateurs %}
+                  <option value="{{ f.id }}"
+                          {% if user.formateur_id == f.id %}selected{% endif %}>
+                    {{ f.username }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Recruteur assigné</label>
+              <select name="recruteur_id" class="form-select">
+                <option value="">— Aucun —</option>
+                {% for r in recruteurs %}
+                  <option value="{{ r.id }}"
+                          {% if user.recruteur_id == r.id %}selected{% endif %}>
+                    {{ r.username }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-check mb-3">
+            <input type="checkbox" name="actif" class="form-check-input"
+                   id="actifCheck" {% if user.actif %}checked{% endif %}>
+            <label class="form-check-label" for="actifCheck">
+              Compte actif
+            </label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button class="btn btn-success flex-grow-1">
+              <i class="bi bi-check-circle"></i> Enregistrer les modifications
+            </button>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">
+              Annuler
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-info-circle"></i> Infos
+      </div>
+      <div class="card-body small">
+        <p><strong>ID :</strong> {{ user.id }}</p>
+        <p><strong>Rôle actuel :</strong> {{ user.role }}</p>
+        <p><strong>Créé le :</strong> {{ user.created_at.strftime('%d/%m/%Y à %H:%M') }}</p>
+        <p><strong>Statut :</strong>
+          {% if user.actif %}
+            <span class="badge bg-success">Actif</span>
+          {% else %}
+            <span class="badge bg-secondary">Inactif</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    {% if user.id != current_user.id %}
+    <div class="card shadow-sm border-0 border-danger">
+      <div class="card-header bg-danger text-white">
+        <i class="bi bi-exclamation-triangle"></i> Zone dangereuse
+      </div>
+      <div class="card-body">
+        <p class="small mb-2">
+          La suppression est <strong>définitive</strong>.
+          Toutes les réponses et RDV de cet utilisateur seront aussi supprimés.
+        </p>
+        <a href="{{ url_for('admin_delete_user', uid=user.id) }}"
+           class="btn btn-danger w-100"
+           onclick="return confirm('⚠️ Supprimer DÉFINITIVEMENT {{ user.username }} ? Cette action est irréversible.')">
+          <i class="bi bi-trash"></i> Supprimer cet utilisateur
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+const roleSelect = document.getElementById('roleSelect');
+if (roleSelect) {
+    roleSelect.addEventListener('change', function() {
+        document.getElementById('assignationsDiv').style.display =
+            (this.value === 'candidat') ? 'flex' : 'none';
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

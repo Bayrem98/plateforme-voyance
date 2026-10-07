@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+
+{# 🔙 Bouton retour adapté selon le rôle #}
+{% if current_user.role == 'admin' %}
+  <a href="{{ url_for('admin_rdv') }}"
+     class="btn btn-sm btn-outline-secondary mb-3">
+    <i class="bi bi-arrow-left"></i> Retour à la gestion des RDV
+  </a>
+{% else %}
+  <a href="{{ url_for('recruteur_calendrier') }}"
+     class="btn btn-sm btn-outline-secondary mb-3">
+    <i class="bi bi-arrow-left"></i> Retour au calendrier
+  </a>
+{% endif %}
+
+<h2><i class="bi bi-calendar-event"></i> Détail du rendez-vous</h2>
+<hr>
+
+<div class="row">
+  <div class="col-md-7">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h4>
+          {% if rdv.statut == 'planifie' %}
+            <span class="badge bg-primary">Planifié</span>
+          {% elif rdv.statut == 'termine' %}
+            <span class="badge bg-success">Terminé</span>
+          {% else %}
+            <span class="badge bg-secondary">Annulé</span>
+          {% endif %}
+          {{ rdv.type_rdv }}
+        </h4>
+        
+        <table class="table table-sm mt-3">
+          <tr>
+            <th width="150">Date :</th>
+            <td><strong>{{ rdv.date_heure.strftime('%A %d %B %Y') }}</strong></td>
+          </tr>
+          <tr>
+            <th>Heure :</th>
+            <td>{{ rdv.date_heure.strftime('%H:%M') }}</td>
+          </tr>
+          <tr>
+            <th>Durée :</th>
+            <td>{{ rdv.duree_minutes }} minutes</td>
+          </tr>
+          <tr>
+            <th>Avec :</th>
+            <td>
+              <strong>{{ rdv.candidat.username }}</strong>
+              <br><small class="text-muted">{{ rdv.candidat.email }}</small>
+            </td>
+          </tr>
+        </table>
+
+        {% if rdv.notes %}
+          <hr>
+          <strong>Notes :</strong>
+          <p class="mt-2">{{ rdv.notes }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-gear"></i> Actions
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('recruteur_changer_statut_rdv', rdv_id=rdv.id) }}"
+              class="mb-3">
+          <label class="form-label">Changer le statut :</label>
+          <div class="d-grid gap-2">
+            <button name="statut" value="planifie" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-clock"></i> Planifié
+            </button>
+            <button name="statut" value="termine" class="btn btn-outline-success btn-sm">
+              <i class="bi bi-check-circle"></i> Marquer comme terminé
+            </button>
+            <button name="statut" value="annule" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-x-circle"></i> Annuler le RDV
+            </button>
+          </div>
+        </form>
+
+        <hr>
+
+        <a href="mailto:{{ rdv.candidat.email }}?subject=Confirmation RDV {{ rdv.date_heure.strftime('%d/%m/%Y') }}"
+           class="btn btn-outline-primary w-100 mb-2">
+          <i class="bi bi-envelope"></i> Contacter le candidat
+        </a>
+
+        <a href="{{ url_for('recruteur_supprimer_rdv', rdv_id=rdv.id) }}"
+           class="btn btn-outline-danger w-100"
+           onclick="return confirm('Supprimer définitivement ce RDV ?')">
+          <i class="bi bi-trash"></i> Supprimer
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-1"><i class="bi bi-people-fill"></i> Mes candidats recrutés</h2>
+    <p class="text-muted mb-0">Tu recrutes les candidats et les assignes à un formateur.</p>
+  </div>
+  <div>
+    <a href="{{ url_for('recruteur_calendrier') }}" class="btn btn-primary">
+      <i class="bi bi-calendar3"></i> Mon calendrier
+    </a>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCandidat">
+      <i class="bi bi-person-plus"></i> Nouveau candidat
+    </button>
+  </div>
+</div>
+<hr>
+
+{# RDV à venir #}
+{% if rdvs_a_venir %}
+<div class="card shadow-sm border-0 mb-4 border-start border-warning border-4">
+  <div class="card-header bg-warning text-dark">
+    <i class="bi bi-calendar-event"></i> Prochains rendez-vous
+  </div>
+  <div class="card-body">
+    <div class="row g-2">
+      {% for rdv in rdvs_a_venir %}
+        <div class="col-md-6">
+          <div class="d-flex align-items-center p-2 rounded bg-light">
+            <div class="text-center me-3">
+              <div class="h4 mb-0">{{ rdv.date_heure.strftime('%d') }}</div>
+              <small class="text-muted">{{ rdv.date_heure.strftime('%b') }}</small>
+            </div>
+            <div class="flex-grow-1">
+              <strong>{{ rdv.candidat.username }}</strong>
+              <br><small class="text-muted">
+                <i class="bi bi-clock"></i> {{ rdv.date_heure.strftime('%H:%M') }}
+                • {{ rdv.type_rdv }}
+              </small>
+            </div>
+            <a href="{{ url_for('recruteur_voir_rdv', rdv_id=rdv.id) }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# Liste des candidats #}
+<div class="row g-3">
+{% for item in data %}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 theme-card">
+      <div class="card-body">
+        <div class="d-flex align-items-center mb-3">
+          <div class="avatar-circle">{{ item.candidat.username[0]|upper }}</div>
+          <div class="ms-3 flex-grow-1">
+            <h5 class="mb-0">{{ item.candidat.username }}</h5>
+            <small class="text-muted">{{ item.candidat.email }}</small>
+          </div>
+          {% if item.candidat.actif %}
+            <span class="badge bg-success">Actif</span>
+          {% else %}
+            <span class="badge bg-secondary">Inactif</span>
+          {% endif %}
+        </div>
+
+        <p class="small text-muted mb-2">
+          Formateur assigné :
+          {% if item.formateur %}
+            <strong>{{ item.formateur.username }}</strong>
+          {% else %}
+            <em>Aucun</em>
+          {% endif %}
+        </p>
+
+        <div class="d-grid gap-2 mt-3">
+          <a href="{{ url_for('recruteur_voir_candidat', candidat_id=item.candidat.id) }}"
+             class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-person-lines-fill"></i> Voir coordonnées
+          </a>
+          <a href="{{ url_for('recruteur_nouveau_rdv', candidat_id=item.candidat.id) }}"
+             class="btn btn-sm btn-warning">
+            <i class="bi bi-calendar-plus"></i> Planifier un RDV
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="col-12">
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      Tu n'as pas encore recruté de candidat.
+      Clique sur <strong>"Nouveau candidat"</strong> pour commencer.
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+{# Modal de création candidat #}
+<div class="modal fade" id="modalCandidat" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('recruteur_creer_candidat') }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="bi bi-person-plus"></i> Nouveau candidat</h5>
+          <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nom d'utilisateur *</label>
+            <input type="text" name="username" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mot de passe *</label>
+            <input type="password" name="password" class="form-control" required minlength="6">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Assigner à un formateur</label>
+            <select name="formateur_id" class="form-select">
+              <option value="">— Choisir un formateur —</option>
+              {% for f in formateurs %}
+                <option value="{{ f.id }}">{{ f.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button class="btn btn-primary">Créer le candidat</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

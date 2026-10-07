@@ -4,6 +4,13 @@
 
   <div class="card shadow-lg border-0 mb-4 text-center">
     <div class="card-body py-5">
+      {% if 'triche' in resultat.commentaire|lower %}
+<div class="alert alert-danger">
+  <i class="bi bi-shield-exclamation"></i>
+  <strong>⚠️ Attention :</strong> Des tentatives de triche ont été détectées
+  pendant ce test. Elles ont été enregistrées et une pénalité a été appliquée.
+</div>
+{% endif %}
       {% if valide %}
         <div class="display-1 text-success"><i class="bi bi-check-circle-fill"></i></div>
         <h2 class="text-success">Bravo ! 🎉</h2>

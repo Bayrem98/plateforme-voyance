@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('admin_rdv') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h2><i class="bi bi-calendar-plus"></i> Nouveau rendez-vous</h2>
+<p class="text-muted">Créer un RDV pour n'importe quel candidat.</p>
+<hr>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Candidat *</label>
+            <select name="candidat_id" class="form-select" required>
+              <option value="">— Choisir un candidat —</option>
+              {% for c in candidats %}
+                <option value="{{ c.id }}">
+                  {{ c.username }} ({{ c.email }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Recruteur responsable</label>
+            <select name="recruteur_id" class="form-select">
+              <option value="">— Moi-même (admin) —</option>
+              {% for r in recruteurs %}
+                <option value="{{ r.id }}">{{ r.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Date *</label>
+              <input type="date" name="date" class="form-control" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Heure *</label>
+              <input type="time" name="heure" class="form-control" required value="10:00">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Durée</label>
+              <select name="duree" class="form-select">
+                <option value="15">15 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">1 heure</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Type de RDV</label>
+              <select name="type_rdv" class="form-select">
+                <option value="Entretien">Entretien</option>
+                <option value="Visio">Visioconférence</option>
+                <option value="Téléphone">Téléphone</option>
+                <option value="Formation">Formation</option>
+                <option value="Suivi">Suivi</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="3"
+                      placeholder="Sujet du RDV, informations à préparer…"></textarea>
+          </div>
+
+          <button class="btn btn-success w-100">
+            <i class="bi bi-check-circle"></i> Créer le rendez-vous
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+document.querySelector('input[name="date"]').valueAsDate = new Date();
+</script>
+{% endblock %}
+{% endblock %}

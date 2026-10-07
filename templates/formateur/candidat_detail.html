@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('formateur_dashboard') }}"
+   class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <div class="d-flex align-items-center">
+      <div class="avatar-circle avatar-large">{{ candidat.username[0]|upper }}</div>
+      <div class="ms-3">
+        <h2 class="mb-0">{{ candidat.username }}</h2>
+        <p class="text-muted mb-0">
+          <i class="bi bi-envelope"></i> {{ candidat.email }}
+          {% if candidat.actif %}
+            <span class="badge bg-success ms-2">Actif</span>
+          {% else %}
+            <span class="badge bg-secondary ms-2">Inactif</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Stats #}
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card stat-card border-0 text-white" style="background: linear-gradient(135deg, #4a148c, #7b1fa2);">
+      <div class="card-body text-center">
+        <div class="display-5">{{ stats.total }}</div>
+        <div class="small">Réponses totales</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card border-0 text-white" style="background: linear-gradient(135deg, #2e7d32, #43a047);">
+      <div class="card-body text-center">
+        <div class="display-5">{{ stats.validees }}</div>
+        <div class="small">Validées</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card border-0 text-white" style="background: linear-gradient(135deg, #f57c00, #ffb74d);">
+      <div class="card-body text-center">
+        <div class="display-5">{{ stats.en_attente }}</div>
+        <div class="small">En attente</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card border-0 text-white" style="background: linear-gradient(135deg, #0277bd, #039be5);">
+      <div class="card-body text-center">
+        <div class="display-5">{{ stats.note_moyenne }}</div>
+        <div class="small">Moyenne /20</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Réponses groupées par thème #}
+{% for theme_nom, reponses in par_theme.items() %}
+  <h4 class="mt-4 mb-3">
+    <i class="bi bi-tag-fill" style="color: {{ reponses[0].exercice.theme.couleur }};"></i>
+    {{ theme_nom }}
+    <span class="badge bg-secondary">{{ reponses|length }}</span>
+  </h4>
+
+  <div class="row g-3">
+    {% for rep in reponses %}
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0 h-100 reponse-card
+                  {% if rep.statut == 'corrige' and rep.valide %}border-start border-success border-4
+                  {% elif rep.statut == 'corrige' %}border-start border-danger border-4
+                  {% else %}border-start border-warning border-4{% endif %}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="mb-0">
+              <i class="bi bi-journal-text"></i> {{ rep.exercice.titre }}
+            </h6>
+            {% if rep.statut == 'corrige' %}
+              <span class="badge fs-6 {% if rep.valide %}bg-success{% else %}bg-danger{% endif %}">
+                {{ rep.note }}/20
+              </span>
+            {% else %}
+              <span class="badge bg-warning text-dark">En attente</span>
+            {% endif %}
+          </div>
+
+          {# 🆕 Qui a corrigé #}
+          {% if rep.statut == 'corrige' %}
+            <div class="mb-2">
+              {% if rep.corrige_par_ia %}
+                <small class="text-muted">
+                  <i class="bi bi-robot"></i> Corrigé par IA
+                </small>
+              {% elif rep.correcteur %}
+                <small class="text-primary">
+                  <i class="bi bi-person-check"></i> 
+                  Corrigé par <strong>{{ rep.correcteur.username }}</strong>
+                  {% if rep.correcteur.role == 'admin' %}
+                    <span class="badge bg-danger ms-1">admin</span>
+                  {% endif %}
+                </small>
+              {% else %}
+                <small class="text-muted">
+                  <i class="bi bi-person-check"></i> Corrigé manuellement
+                </small>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if rep.exercice.domaine %}
+            <span class="badge bg-info text-dark mb-2">
+              <i class="bi bi-tag"></i> {{ rep.exercice.domaine }}
+            </span>
+          {% endif %}
+
+          <p class="text-muted small mb-2">
+            <i class="bi bi-chat-left-text"></i> <strong>Question :</strong>
+            {{ rep.exercice.enonce|truncate(80) }}
+          </p>
+
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted">
+              <i class="bi bi-clock"></i>
+              {{ rep.date_soumission.strftime('%d/%m %H:%M') }}
+            </small>
+            <a href="{{ url_for('formateur_voir_reponse', rep_id=rep.id) }}"
+               class="btn btn-sm btn-primary">
+              <i class="bi bi-eye"></i> Voir détail
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% else %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i> Aucune réponse pour le moment.
+</div>
+{% endfor %}
+{% endblock %}

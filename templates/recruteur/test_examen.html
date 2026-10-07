@@ -16,12 +16,20 @@
     </div>
     <div class="card-body py-2">
       <div class="alert alert-warning mb-0">
-        ⚠️ <strong>Mode examen</strong> — La formation est masquée.
-        <br><small>L'IA corrigera automatiquement ta réponse à la fin.</small>
+        🚫 <strong>Mode examen strict</strong> — Copier/coller, clic droit et
+        sortie d'onglet sont <strong>désactivés et surveillés</strong>.
       </div>
     </div>
   </div>
 
+  {# Bandeau d'avertissements #}
+  <div id="alerteTriche" class="alert alert-danger d-none">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Attention !</strong> Tentative de triche détectée.
+    <span id="nbAlertes">0</span> avertissement(s).
+  </div>
+
+  {# Question du client #}
   <div class="card shadow-sm border-0 mb-3">
     <div class="card-header bg-primary text-white">
       <i class="bi bi-chat-quote"></i> Question du client
@@ -53,8 +61,12 @@
         <label class="form-label fw-bold">✏️ Ta réponse au client</label>
         <textarea name="reponse_client" id="reponse_client"
                   class="form-control" rows="8" required
+                  autocomplete="off" spellcheck="false"
                   placeholder="Rédige ta réponse complète en intégrant les mots-clés…"></textarea>
-        <small class="text-muted">Compte : <span id="compteur">0</span> caractères</small>
+        <small class="text-muted">
+          Compte : <span id="compteur">0</span> caractères
+          • 🚫 Copier/coller désactivé
+        </small>
       </div>
     </div>
 
@@ -64,6 +76,7 @@
           📘 Explication / justification <span class="text-muted">(optionnel)</span>
         </label>
         <textarea name="explication" class="form-control" rows="5"
+                  autocomplete="off" spellcheck="false"
                   placeholder="Explique ton raisonnement, tes calculs…"></textarea>
       </div>
     </div>
@@ -79,10 +92,16 @@
 
 {% block scripts %}
 <script>
+// ═══════════════════════════════════════════════════════════
+//   ANTI-TRICHE — MODE EXAMEN STRICT
+// ═══════════════════════════════════════════════════════════
+
 const DUREE_MINUTES = 15;
 let tempsRestant = DUREE_MINUTES * 60;
 const chronoEl = document.getElementById('chrono');
 const form = document.getElementById('testForm');
+
+let nbAlertes = 0;
 
 function afficherChrono() {
     const min = Math.floor(tempsRestant / 60);
@@ -102,27 +121,108 @@ const interval = setInterval(() => {
     }
 }, 1000);
 
+// Compteur de caractères
 const ta = document.getElementById('reponse_client');
 const compteur = document.getElementById('compteur');
 ta.addEventListener('input', () => {
     compteur.textContent = ta.value.length;
 });
 
-window.addEventListener('beforeunload', e => {
-    e.preventDefault();
-    e.returnValue = '';
+// ─── 1. Bloquer copier / couper / coller ───
+['copy', 'cut', 'paste'].forEach(evt => {
+    document.addEventListener(evt, e => {
+        e.preventDefault();
+        signalerTriche(evt === 'paste' ? 'Coller' :
+                       evt === 'copy' ? 'Copier' : 'Couper');
+        return false;
+    });
 });
 
+// ─── 2. Bloquer le clic droit ───
+document.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    signalerTriche('Clic droit');
+    return false;
+});
+
+// ─── 3. Bloquer les raccourcis clavier ───
+document.addEventListener('keydown', e => {
+    // Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, Ctrl+S, Ctrl+P, F12
+    if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'x', 'a', 's', 'p'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        signalerTriche(`Raccourci Ctrl+${e.key.toUpperCase()}`);
+        return false;
+    }
+    // F12 (outils dev) et Ctrl+Shift+I/J/C
+    if (e.key === 'F12') {
+        e.preventDefault();
+        signalerTriche('F12');
+        return false;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        signalerTriche(`Raccourci Ctrl+Shift+${e.key.toUpperCase()}`);
+        return false;
+    }
+});
+
+// ─── 4. Détecter la sortie d'onglet ───
 let sorties = 0;
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         sorties++;
-        if (sorties === 2) {
-            alert('⚠️ Tu as quitté l\'onglet 2 fois. Reste concentré.');
-        }
+        signalerTriche(`Sortie d'onglet (${sorties})`);
     }
 });
 
-document.addEventListener('contextmenu', e => e.preventDefault());
+// ─── 5. Détecter si la fenêtre perd le focus ───
+window.addEventListener('blur', () => {
+    // Ne compte pas si c'est un changement d'onglet déjà compté
+    if (!document.hidden) {
+        signalerTriche('Perte de focus');
+    }
+});
+
+// ─── Fonction d'alerte ───
+function signalerTriche(type) {
+    nbAlertes++;
+    console.warn(`🚫 Triche détectée : ${type}`);
+    
+    // Afficher le bandeau
+    const bandeau = document.getElementById('alerteTriche');
+    bandeau.classList.remove('d-none');
+    document.getElementById('nbAlertes').textContent = nbAlertes;
+    
+    // Envoyer au serveur (en arrière-plan)
+    fetch('/signaler_triche', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            exercice_id: {{ ex.id }},
+            type: type,
+            timestamp: Date.now()
+        })
+    }).catch(() => {});
+}
+
+// ─── 6. Empêcher l'insertion via "paste" dans le textarea ───
+[document.getElementById('reponse_client'),
+ document.querySelector('textarea[name="explication"]')].forEach(el => {
+    if (!el) return;
+    el.addEventListener('paste', e => {
+        e.preventDefault();
+        signalerTriche('Coller (textarea)');
+    });
+    el.addEventListener('drop', e => {
+        e.preventDefault();
+        signalerTriche('Glisser-déposer');
+    });
+    el.addEventListener('copy', e => {
+        e.preventDefault();
+    });
+    el.addEventListener('cut', e => {
+        e.preventDefault();
+    });
+});
 </script>
 {% endblock %}

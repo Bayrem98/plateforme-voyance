@@ -7,20 +7,38 @@ with app.app_context():
     db.create_all()
 
     # ========== UTILISATEURS ==========
+    
+    # 1. SuperAdmin
     admin = User(username='admin', email='admin@v.com',
                  password=generate_password_hash('admin123'), role='admin')
+    db.session.add(admin)
+    db.session.commit()
+
+    # 2. Recruteur (recrute les candidats)
+    recruteur = User(username='recruteur1', email='rec@v.com',
+                     password=generate_password_hash('rec123'), role='recruteur')
+    db.session.add(recruteur)
+    db.session.commit()
+
+    # 3. Formateur
     formateur = User(username='formateur1', email='f1@v.com',
                      password=generate_password_hash('form123'), role='formateur')
-    db.session.add_all([admin, formateur])
+    db.session.add(formateur)
     db.session.commit()
 
-    recrue = User(username='recrue1', email='r1@v.com',
-                  password=generate_password_hash('recrue123'),
-                  role='recruteur', formateur_id=formateur.id)
-    db.session.add(recrue)
+    # 4. Candidat (rattaché à un recruteur ET un formateur)
+    candidat = User(
+        username='candidat1',
+        email='c1@v.com',
+        password=generate_password_hash('candidat123'),
+        role='candidat',
+        formateur_id=formateur.id,
+        recruteur_id=recruteur.id,
+    )
+    db.session.add(candidat)
     db.session.commit()
 
-    # ========== THÈMES (3 seulement) ==========
+    # ========== THÈMES ==========
     themes_data = [
         ('Astrologie', 'Les signes du zodiaque, planètes et maisons.',
          'bi-sun', '#ff9800'),
@@ -36,39 +54,17 @@ with app.app_context():
         themes[nom] = t
     db.session.commit()
 
-    # ========== FORMATIONS DE BASE ==========
-    Formation(
-        titre="Introduction à l'Astrologie",
-        contenu="<p>L'astrologie étudie la position des astres...</p>",
-        theme_id=themes['Astrologie'].id, ordre=1
-    )
-    Formation(
-        titre="Les bases de la Numérologie",
-        contenu="<p>Chaque nombre a une vibration...</p>",
-        theme_id=themes['Numérologie'].id, ordre=1
-    )
-
-    # ========== QUESTIONS TEST ==========
-    questions_data = [
-        ("Quel est le premier signe du zodiaque ?",
-         "Taureau", "Bélier", "Gémeaux", "Poisson", "b",
-         "Le Bélier ouvre le cycle zodiacal.", "Astrologie"),
-        ("Combien de signes compte le zodiaque ?",
-         "10", "11", "12", "13", "c",
-         "12 signes, un par mois.", "Astrologie"),
-    ]
-    for texte, a, b, c, d, bonne, expl, theme_nom in questions_data:
-        Question(texte=texte, option_a=a, option_b=b, option_c=c, option_d=d,
-                 bonne_reponse=bonne, explication=expl,
-                 theme_id=themes[theme_nom].id)
-
+    # Formations de base
+    Formation(titre="Introduction à l'Astrologie",
+              contenu="<p>L'astrologie étudie la position des astres...</p>",
+              theme_id=themes['Astrologie'].id, ordre=1)
+    Formation(titre="Les bases de la Numérologie",
+              contenu="<p>Chaque nombre a une vibration...</p>",
+              theme_id=themes['Numérologie'].id, ordre=1)
     db.session.commit()
+
     print("✅ BDD initialisée")
-    print("🔑 admin / admin123")
-    print("🔑 formateur1 / form123")
-    print("🔑 recrue1 / recrue123")
-    print()
-    print("📌 Étapes suivantes :")
-    print("   1. python import_word.py       (Formations Astro + Numérologie)")
-    print("   2. python import_exercices.py  (Exercices Numérologie)")
-    print("   3. python import_tarot.py      (Cartes Tarot)")
+    print("🔑 admin / admin123          (SuperAdmin)")
+    print("🔑 recruteur1 / rec123       (Recruteur — crée les candidats)")
+    print("🔑 formateur1 / form123      (Formateur — gère formations)")
+    print("🔑 candidat1 / candidat123   (Candidat — passe les tests)")

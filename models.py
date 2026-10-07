@@ -11,16 +11,26 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), default='recruteur')
+    # Rôles : 'candidat', 'recruteur', 'formateur', 'admin'
+    role = db.Column(db.String(20), default='candidat')
     formateur_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    recruteur_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     actif = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    formateur = db.relationship('User', remote_side=[id], backref='recruteurs')
+    # Relations d'auto-référence
+    formateur = db.relationship('User', foreign_keys=[formateur_id],
+                                remote_side=[id], backref='candidats')
+    recruteur = db.relationship('User', foreign_keys=[recruteur_id],
+                                remote_side=[id], backref='candidats_recrutes')
+    
+    # Relations vers d'autres tables
     tentatives = db.relationship('Tentative', backref='user', lazy=True)
-    reponses_exercices = db.relationship('ReponseExercice', backref='user', lazy=True)
     cartes_validees = db.relationship('CarteValidee', backref='user', lazy=True,
                                      cascade='all, delete-orphan')
+    
+    # ⚠️ PAS de relationship 'reponses_exercices' ici
+    # Il est défini côté ReponseExercice pour éviter l'ambiguïté
 
 
 class Theme(db.Model):
@@ -85,7 +95,7 @@ class Exercice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titre = db.Column(db.String(200), nullable=False)
     domaine = db.Column(db.String(50))
-    niveau = db.Column(db.Integer, default=1)   # ← numéro de carte (1 à 22)
+    niveau = db.Column(db.Integer, default=1)
     enonce = db.Column(db.Text, nullable=False)
     donnees = db.Column(db.Text)
     mots_cles = db.Column(db.Text)
@@ -112,26 +122,48 @@ class ReponseExercice(db.Model):
     valide = db.Column(db.Boolean, default=False)
     duree_secondes = db.Column(db.Integer)
     corrige_par_ia = db.Column(db.Boolean, default=False)
+    # 🆕 Qui a fait la correction manuelle (override) ?
+    correcteur_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     date_soumission = db.Column(db.DateTime, default=datetime.utcnow)
     date_correction = db.Column(db.DateTime)
 
+    # Relations avec foreign_keys explicites (OBLIGATOIRE car 2 FK vers users)
+    user = db.relationship('User', foreign_keys=[user_id],
+                           backref='reponses_soumises')
+    correcteur = db.relationship('User', foreign_keys=[correcteur_id],
+                                 backref='corrections_effectuees')
+
 
 class CarteValidee(db.Model):
-    """🆕 Marque qu'un recruteur a validé une carte (niveau) entière.
-    
-    Une carte est validée quand TOUS ses exercices sont validés
-    ET que la moyenne des notes est >= 10/20.
-    """
     __tablename__ = 'cartes_validees'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     theme_id = db.Column(db.Integer, db.ForeignKey('themes.id'), nullable=False)
-    niveau = db.Column(db.Integer, nullable=False)      # numéro de carte
-    moyenne = db.Column(db.Float)                        # moyenne des notes
-    validee = db.Column(db.Boolean, default=False)       # True si ≥ 10
+    niveau = db.Column(db.Integer, nullable=False)
+    moyenne = db.Column(db.Float)
+    validee = db.Column(db.Boolean, default=False)
     date_validation = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (
         db.UniqueConstraint('user_id', 'theme_id', 'niveau',
                             name='unique_carte_par_user'),
     )
+
+
+class RendezVous(db.Model):
+    __tablename__ = 'rendez_vous'
+    id = db.Column(db.Integer, primary_key=True)
+    recruteur_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    candidat_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    date_heure = db.Column(db.DateTime, nullable=False)
+    duree_minutes = db.Column(db.Integer, default=30)
+    type_rdv = db.Column(db.String(50), default='Entretien')
+    notes = db.Column(db.Text)
+    statut = db.Column(db.String(20), default='planifie')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # foreign_keys explicites car 2 FK vers users
+    recruteur = db.relationship('User', foreign_keys=[recruteur_id],
+                                backref='rdvs_planifies')
+    candidat = db.relationship('User', foreign_keys=[candidat_id],
+                               backref='rdvs_recus')

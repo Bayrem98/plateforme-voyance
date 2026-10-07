@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-1"><i class="bi bi-calendar-event"></i> Gestion des RDV</h2>
+    <p class="text-muted mb-0">Tous les rendez-vous de la plateforme ({{ total }} au total).</p>
+  </div>
+  <a href="{{ url_for('admin_nouveau_rdv') }}" class="btn btn-primary">
+    <i class="bi bi-calendar-plus"></i> Nouveau RDV
+  </a>
+</div>
+<hr>
+
+{# RDV futurs #}
+<h4 class="mb-3">
+  <i class="bi bi-clock-history text-primary"></i>
+  RDV à venir
+  <span class="badge bg-primary">{{ futurs|length }}</span>
+</h4>
+
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Date & Heure</th>
+          <th>Candidat</th>
+          <th>Recruteur</th>
+          <th>Type</th>
+          <th>Durée</th>
+          <th>Statut</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in futurs %}
+        <tr>
+          <td>
+            <strong>{{ r.date_heure.strftime('%d/%m/%Y') }}</strong>
+            <br><small class="text-muted">{{ r.date_heure.strftime('%H:%M') }}</small>
+          </td>
+          <td>
+            <div class="d-flex align-items-center">
+              <div class="avatar-circle-sm me-2">{{ r.candidat.username[0]|upper }}</div>
+              <strong>{{ r.candidat.username }}</strong>
+            </div>
+          </td>
+          <td>{{ r.recruteur.username }}</td>
+          <td><span class="badge bg-info text-dark">{{ r.type_rdv }}</span></td>
+          <td>{{ r.duree_minutes }} min</td>
+          <td>
+            {% if r.statut == 'planifie' %}
+              <span class="badge bg-primary">Planifié</span>
+            {% elif r.statut == 'termine' %}
+              <span class="badge bg-success">Terminé</span>
+            {% else %}
+              <span class="badge bg-secondary">Annulé</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {# 👁️ Voir / Modifier #}
+            <a href="{{ url_for('recruteur_voir_rdv', rdv_id=r.id) }}"
+               class="btn btn-sm btn-outline-primary" title="Voir / Modifier">
+              <i class="bi bi-eye"></i>
+            </a>
+            {# ✏️ Modifier (même page) #}
+            <a href="{{ url_for('recruteur_voir_rdv', rdv_id=r.id) }}"
+               class="btn btn-sm btn-outline-warning" title="Modifier">
+              <i class="bi bi-pencil"></i>
+            </a>
+            {# ✅ Marquer terminé (raccourci) #}
+            <form method="POST"
+                  action="{{ url_for('recruteur_changer_statut_rdv', rdv_id=r.id) }}"
+                  class="d-inline">
+              <input type="hidden" name="statut" value="termine">
+              <button class="btn btn-sm btn-outline-success" title="Marquer terminé"
+                      onclick="return confirm('Marquer ce RDV comme terminé ?')">
+                <i class="bi bi-check-circle"></i>
+              </button>
+            </form>
+            {# 🗑️ Supprimer #}
+            <a href="{{ url_for('admin_supprimer_rdv', rdv_id=r.id) }}"
+               class="btn btn-sm btn-outline-danger" title="Supprimer"
+               onclick="return confirm('⚠️ Supprimer ce RDV ?')">
+              <i class="bi bi-trash"></i>
+            </a>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">
+            <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
+            Aucun RDV à venir.
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# RDV passés / annulés #}
+<h4 class="mb-3">
+  <i class="bi bi-archive text-secondary"></i>
+  Historique
+  <span class="badge bg-secondary">{{ passes|length }}</span>
+</h4>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Date</th>
+          <th>Candidat</th>
+          <th>Recruteur</th>
+          <th>Type</th>
+          <th>Statut</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in passes %}
+        <tr>
+          <td>
+            {{ r.date_heure.strftime('%d/%m/%Y') }}
+            <br><small class="text-muted">{{ r.date_heure.strftime('%H:%M') }}</small>
+          </td>
+          <td>{{ r.candidat.username }}</td>
+          <td>{{ r.recruteur.username }}</td>
+          <td>{{ r.type_rdv }}</td>
+          <td>
+            {% if r.statut == 'termine' %}
+              <span class="badge bg-success">Terminé</span>
+            {% elif r.statut == 'annule' %}
+              <span class="badge bg-secondary">Annulé</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Passé</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('recruteur_voir_rdv', rdv_id=r.id) }}"
+               class="btn btn-sm btn-outline-primary" title="Voir">
+              <i class="bi bi-eye"></i>
+            </a>
+            <a href="{{ url_for('admin_supprimer_rdv', rdv_id=r.id) }}"
+               class="btn btn-sm btn-outline-danger" title="Supprimer"
+               onclick="return confirm('⚠️ Supprimer ce RDV ?')">
+              <i class="bi bi-trash"></i>
+            </a>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">
+            <i class="bi bi-archive fs-3 d-block mb-2"></i>
+            Aucun historique.
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

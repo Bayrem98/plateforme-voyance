@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('formateur_voir_candidat', candidat_id=rep.user.id) }}"
+   class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour au candidat
+</a>
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h3 class="mb-1"><i class="bi bi-journal-text"></i> {{ rep.exercice.titre }}</h3>
+    <p class="text-muted mb-0">
+      Candidat : <strong>{{ rep.user.username }}</strong>
+      • Soumis le {{ rep.date_soumission.strftime('%d/%m/%Y à %H:%M') }}
+      {% if rep.duree_secondes %}
+        • Durée : {{ rep.duree_secondes // 60 }}min {{ rep.duree_secondes % 60 }}s
+      {% endif %}
+    </p>
+  </div>
+  <div class="text-end">
+  {% if rep.statut == 'corrige' %}
+    <div class="display-4 fw-bold
+                {% if rep.note >= 14 %}text-success
+                {% elif rep.note >= 10 %}text-warning
+                {% else %}text-danger{% endif %}">
+      {{ rep.note }}/20
+    </div>
+    
+    {# 🆕 Afficher qui a corrigé #}
+    {% if rep.corrige_par_ia %}
+      <span class="badge bg-info text-dark">
+        <i class="bi bi-robot"></i> Corrigé par IA
+      </span>
+    {% elif rep.correcteur %}
+      <span class="badge bg-primary">
+        <i class="bi bi-person-check"></i> 
+        Corrigé par {{ rep.correcteur.username }}
+        {% if rep.correcteur.role == 'admin' %}(admin){% endif %}
+      </span>
+      <br>
+      <small class="text-muted">
+        <i class="bi bi-clock"></i>
+        {{ rep.date_correction.strftime('%d/%m/%Y à %H:%M') if rep.date_correction }}
+      </small>
+    {% else %}
+      <span class="badge bg-warning text-dark">
+        <i class="bi bi-person"></i> Correction manuelle
+      </span>
+    {% endif %}
+  {% endif %}
+</div>
+</div>
+
+<div class="row">
+  {# Colonne gauche : contenu #}
+  <div class="col-md-7">
+
+    {# Question #}
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-chat-quote"></i> Question du client
+      </div>
+      <div class="card-body">
+        <p class="fs-5 mb-0">{{ rep.exercice.enonce }}</p>
+        {% if rep.exercice.donnees %}
+          <hr>
+          <strong>Données :</strong>
+          <pre style="white-space: pre-wrap; margin: 0;">{{ rep.exercice.donnees }}</pre>
+        {% endif %}
+        {% if rep.exercice.domaine %}
+          <hr>
+          <span class="badge bg-info text-dark">
+            <i class="bi bi-tag"></i> {{ rep.exercice.domaine }}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Mots-clés #}
+    {% if rep.exercice.mots_cles %}
+    <div class="alert alert-warning">
+      <strong><i class="bi bi-key"></i> Mots-clés attendus :</strong>
+      <div class="mt-2">
+        {% for mot in rep.exercice.mots_cles.split(',') %}
+          <span class="badge bg-dark me-1 mb-1">{{ mot.strip() }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# Réponse du candidat #}
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-secondary text-white">
+        <i class="bi bi-pencil"></i> Réponse du candidat
+      </div>
+      <div class="card-body">
+        <p class="mb-0" style="white-space: pre-wrap;">{{ rep.reponse_client or '(vide)' }}</p>
+      </div>
+    </div>
+
+    {% if rep.explication %}
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-secondary text-white">
+        <i class="bi bi-lightbulb"></i> Explication donnée
+      </div>
+      <div class="card-body">
+        <p class="mb-0" style="white-space: pre-wrap;">{{ rep.explication }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Réponse modèle #}
+    {% if rep.exercice.reponse_attendue %}
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-trophy"></i> Réponse modèle (référence)
+      </div>
+      <div class="card-body">
+        <p class="mb-0" style="white-space: pre-wrap;">{{ rep.exercice.reponse_attendue }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  {# Colonne droite : correction IA + override #}
+  <div class="col-md-5">
+
+    {# Correction IA #}
+    {% if rep.commentaire_ia %}
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header bg-info text-dark">
+        <i class="bi bi-robot"></i> Analyse de l'IA
+      </div>
+      <div class="card-body">
+        <p class="mb-3">{{ rep.commentaire_ia }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Formulaire override #}
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-pencil-square"></i> Correction manuelle (override)
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('formateur_override_reponse', rep_id=rep.id) }}">
+          <div class="mb-3">
+            <label class="form-label">Note /20</label>
+            <input type="number" name="note" class="form-control form-control-lg"
+                   min="0" max="20" value="{{ rep.note or 0 }}" required>
+            <small class="text-muted">
+              ≥ 10 pour valider • Actuellement :
+              <strong>{{ rep.note or 0 }}/20</strong>
+            </small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Commentaire du formateur</label>
+            <textarea name="commentaire_formateur" class="form-control" rows="6"
+                      placeholder="Ton commentaire personnel pour le candidat...">{{ rep.commentaire_formateur or '' }}</textarea>
+          </div>
+
+          <div class="alert alert-info small mb-3">
+            <i class="bi bi-info-circle"></i>
+            Si tu modifies la note, elle deviendra la note <strong>officielle</strong>
+            (l'IA ne sera plus considérée comme source de vérité pour cette réponse).
+          </div>
+
+          <button class="btn btn-success w-100">
+            <i class="bi bi-check-circle"></i> Enregistrer la correction
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Utilisateurs{% endblock %}
 {% block content %}
-<h2><i class="bi bi-people"></i> Gestion des utilisateurs</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-1"><i class="bi bi-people"></i> Gestion des utilisateurs</h2>
+    <p class="text-muted mb-0">{{ users|length }} utilisateur(s) au total</p>
+  </div>
+</div>
 <hr>
 
 <div class="row">
@@ -28,17 +33,27 @@
           <div class="mb-3">
             <label class="form-label">Rôle *</label>
             <select name="role" class="form-select" id="roleSelect" required>
+              <option value="candidat">Candidat</option>
               <option value="recruteur">Recruteur</option>
               <option value="formateur">Formateur</option>
               <option value="admin">SuperAdmin</option>
             </select>
           </div>
           <div class="mb-3" id="formateurDiv">
-            <label class="form-label">Formateur assigné (si recruteur)</label>
+            <label class="form-label">Formateur assigné</label>
             <select name="formateur_id" class="form-select">
               <option value="">— Aucun —</option>
               {% for f in formateurs %}
                 <option value="{{ f.id }}">{{ f.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3" id="recruteurDiv">
+            <label class="form-label">Recruteur assigné</label>
+            <select name="recruteur_id" class="form-select">
+              <option value="">— Aucun —</option>
+              {% for r in recruteurs %}
+                <option value="{{ r.id }}">{{ r.username }}</option>
               {% endfor %}
             </select>
           </div>
@@ -64,25 +79,49 @@
               <th>Email</th>
               <th>Rôle</th>
               <th>Formateur</th>
+              <th>Recruteur</th>
               <th>Statut</th>
-              <th></th>
+              <th class="text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
           {% for u in users %}
             <tr>
-              <td><strong>{{ u.username }}</strong></td>
-              <td>{{ u.email }}</td>
+              <td>
+                <div class="d-flex align-items-center">
+                  <div class="avatar-circle-sm me-2">{{ u.username[0]|upper }}</div>
+                  <strong>{{ u.username }}</strong>
+                  {% if u.id == current_user.id %}
+                    <span class="badge bg-info text-dark ms-2">Toi</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td><small>{{ u.email }}</small></td>
               <td>
                 {% if u.role == 'admin' %}
                   <span class="badge bg-danger">Admin</span>
                 {% elif u.role == 'formateur' %}
                   <span class="badge bg-primary">Formateur</span>
+                {% elif u.role == 'recruteur' %}
+                  <span class="badge bg-warning text-dark">Recruteur</span>
                 {% else %}
-                  <span class="badge bg-secondary">Recruteur</span>
+                  <span class="badge bg-secondary">Candidat</span>
                 {% endif %}
               </td>
-              <td>{{ u.formateur.username if u.formateur else '—' }}</td>
+              <td>
+                {% if u.role == 'candidat' and u.formateur %}
+                  <small>{{ u.formateur.username }}</small>
+                {% else %}
+                  <small class="text-muted">—</small>
+                {% endif %}
+              </td>
+              <td>
+                {% if u.role == 'candidat' and u.recruteur %}
+                  <small>{{ u.recruteur.username }}</small>
+                {% else %}
+                  <small class="text-muted">—</small>
+                {% endif %}
+              </td>
               <td>
                 {% if u.actif %}
                   <span class="badge bg-success">Actif</span>
@@ -90,13 +129,38 @@
                   <span class="badge bg-secondary">Inactif</span>
                 {% endif %}
               </td>
-              <td>
-                {% if u.id != current_user.id %}
-                <a href="{{ url_for('admin_toggle_user', uid=u.id) }}"
-                   class="btn btn-sm btn-outline-{% if u.actif %}warning{% else %}success{% endif %}"
-                   title="Activer/Désactiver">
-                  <i class="bi bi-power"></i>
+              <td class="text-end">
+                {# 👁️ Voir réponses (candidat seulement) #}
+                {% if u.role == 'candidat' %}
+                  <a href="{{ url_for('formateur_voir_candidat', candidat_id=u.id) }}"
+                     class="btn btn-sm btn-outline-primary"
+                     title="Voir les réponses">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                {% endif %}
+
+                {# ✏️ Modifier #}
+                <a href="{{ url_for('admin_edit_user', uid=u.id) }}"
+                   class="btn btn-sm btn-outline-warning"
+                   title="Modifier">
+                  <i class="bi bi-pencil"></i>
                 </a>
+
+                {# 🔋 Activer/Désactiver #}
+                {% if u.id != current_user.id %}
+                  <a href="{{ url_for('admin_toggle_user', uid=u.id) }}"
+                     class="btn btn-sm btn-outline-secondary"
+                     title="{% if u.actif %}Désactiver{% else %}Activer{% endif %}">
+                    <i class="bi bi-power"></i>
+                  </a>
+
+                  {# 🗑️ Supprimer #}
+                  <a href="{{ url_for('admin_delete_user', uid=u.id) }}"
+                     class="btn btn-sm btn-outline-danger"
+                     title="Supprimer"
+                     onclick="return confirm('⚠️ Supprimer DÉFINITIVEMENT {{ u.username }} ?')">
+                    <i class="bi bi-trash"></i>
+                  </a>
                 {% endif %}
               </td>
             </tr>
@@ -110,8 +174,11 @@
 
 <script>
 document.getElementById('roleSelect').addEventListener('change', function() {
+    const estCandidat = (this.value === 'candidat');
     document.getElementById('formateurDiv').style.display =
-        (this.value === 'recruteur') ? 'block' : 'none';
+        estCandidat ? 'block' : 'none';
+    document.getElementById('recruteurDiv').style.display =
+        estCandidat ? 'block' : 'none';
 });
 </script>
 {% endblock %}

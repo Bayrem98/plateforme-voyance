@@ -21,35 +21,69 @@
     </button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
-        {% if current_user.role == 'admin' %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_users') }}"><i class="bi bi-people"></i> Utilisateurs</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_themes') }}"><i class="bi bi-tags"></i> Thèmes</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_formations') }}"><i class="bi bi-journal-text"></i> Formations</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_exercices') }}"><i class="bi bi-journal-check"></i> Tests de niveau</a></li>
-       {% elif current_user.role == 'formateur' %}
+  {% if current_user.role == 'admin' %}
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_users') }}"><i class="bi bi-people"></i> Utilisateurs</a></li>
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_rdv') }}"><i class="bi bi-calendar-event"></i> RDV</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_themes') }}"><i class="bi bi-tags"></i> Thèmes</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_formations') }}"><i class="bi bi-journal-text"></i> Formations</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_exercices') }}"><i class="bi bi-journal-check"></i> Tests</a></li>
+
+  {% elif current_user.role == 'formateur' %}
   <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('formateur_dashboard') }}">
-      <i class="bi bi-speedometer2"></i> Mes recruteurs
+    <a class="nav-link" href="{{ url_for('formateur_rdv') }}">
+      <i class="bi bi-calendar-event"></i> RDV
     </a>
   </li>
-  <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('formateur_corrections') }}">
-      <i class="bi bi-check2-square"></i> Corrections
-    </a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link" href="{{ url_for('admin_exercices') }}">
-      <i class="bi bi-journal-check"></i> Tests de niveau
-    </a>
-  </li>
-        {% else %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('recruteur_dashboard') }}"><i class="bi bi-house"></i> Accueil</a></li>
-        {% endif %}
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('formateur_dashboard') }}">
+        <i class="bi bi-speedometer2"></i> Mes candidats
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('formateur_corrections') }}">
+        <i class="bi bi-check2-square"></i> Corrections
+      </a>
+    </li>
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+        <i class="bi bi-gear"></i> Gérer les contenus
+      </a>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{{ url_for('admin_themes') }}"><i class="bi bi-tags"></i> Thèmes</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('admin_formations') }}"><i class="bi bi-journal-text"></i> Formations</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('admin_exercices') }}"><i class="bi bi-journal-check"></i> Tests de niveau</a></li>
       </ul>
+    </li>
+
+  {% elif current_user.role == 'recruteur' %}
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('recruteur_dash') }}">
+      <i class="bi bi-people"></i> Mes candidats
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('recruteur_calendrier') }}">
+      <i class="bi bi-calendar3"></i> Calendrier
+    </a>
+  </li>
+
+  {% elif current_user.role == 'candidat' %}
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('candidat_dashboard') }}">
+        <i class="bi bi-house"></i> Ma formation
+      </a>
+    </li>
+  {% endif %}
+</ul>
       <span class="navbar-text text-white me-3">
         <i class="bi bi-person-circle"></i> {{ current_user.username }}
-        <span class="badge bg-warning text-dark ms-1">{{ current_user.role }}</span>
+        <span class="badge bg-warning text-dark ms-1">
+  {% if current_user.role == 'candidat' %}Candidat
+  {% elif current_user.role == 'recruteur' %}Recruteur
+  {% elif current_user.role == 'formateur' %}Formateur
+  {% else %}Admin{% endif %}
+</span>
       </span>
       <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">Déconnexion</a>
     </div>

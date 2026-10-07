@@ -1,40 +1,75 @@
 {% extends "base.html" %}
 {% block content %}
-<h2><i class="bi bi-people"></i> Mes recruteurs</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-1"><i class="bi bi-people-fill"></i> Mes candidats</h2>
+    <p class="text-muted mb-0">Suivi de la progression des candidats qui te sont assignés.</p>
+  </div>
+  <a href="{{ url_for('formateur_corrections') }}" class="btn btn-warning">
+    <i class="bi bi-check2-square"></i> Corrections à faire
+  </a>
+</div>
 <hr>
 
 {% for item in data %}
-<div class="card mb-3 shadow-sm border-0">
+<div class="card mb-3 shadow-sm border-0 theme-card">
   <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center">
-      <h5 class="mb-0"><i class="bi bi-person-badge"></i> {{ item.recruteur.username }}</h5>
-      <div>
-        Moyenne :
-        <span class="badge {% if item.moyenne >= 70 %}bg-success{% elif item.moyenne >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center">
+        <div class="avatar-circle">
+          {{ item.recruteur.username[0]|upper }}
+        </div>
+        <div class="ms-3">
+          <h5 class="mb-0">
+            <i class="bi bi-person-badge"></i> {{ item.recruteur.username }}
+          </h5>
+          <small class="text-muted">{{ item.recruteur.email }}</small>
+        </div>
+      </div>
+      <div class="text-end">
+        <div class="small text-muted mb-1">Moyenne générale</div>
+        <span class="badge fs-6 {% if item.moyenne >= 70 %}bg-success{% elif item.moyenne >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
           {{ item.moyenne }}/100
         </span>
       </div>
     </div>
-    <hr>
+
     {% if item.tentatives %}
-    <table class="table table-sm">
-      <thead><tr><th>Thème</th><th>Score</th><th>Date</th></tr></thead>
+    <table class="table table-sm table-hover mb-3">
+      <thead class="table-light">
+        <tr>
+          <th>Thème</th>
+          <th>Score</th>
+          <th>Date</th>
+        </tr>
+      </thead>
       <tbody>
       {% for t in item.tentatives %}
         <tr>
           <td>{{ t.theme.nom }}</td>
-          <td><span class="badge {% if t.score >= 70 %}bg-success{% elif t.score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ t.score }}/100</span></td>
-          <td>{{ t.date_passage.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>
+            <span class="badge {% if t.score >= 70 %}bg-success{% elif t.score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+              {{ t.score }}/100
+            </span>
+          </td>
+          <td class="text-muted small">{{ t.date_passage.strftime('%d/%m/%Y %H:%M') }}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
     {% else %}
-      <p class="text-muted mb-0">Aucune tentative pour le moment.</p>
+      <p class="text-muted mb-3">Aucune tentative QCM pour le moment.</p>
     {% endif %}
+
+    <a href="{{ url_for('formateur_voir_candidat', candidat_id=item.recruteur.id) }}"
+       class="btn btn-primary btn-sm">
+      <i class="bi bi-eye"></i> Voir toutes les réponses détaillées
+    </a>
   </div>
 </div>
 {% else %}
-<div class="alert alert-info">Aucun recruteur ne vous est assigné.</div>
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i> Aucun candidat ne vous est assigné.
+</div>
 {% endfor %}
 {% endblock %}

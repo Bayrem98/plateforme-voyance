@@ -1,16 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <h2><i class="bi bi-speedometer2"></i> Dashboard SuperAdmin</h2>
-<div class="row g-3 mt-3">
+<p class="text-muted">Vue d'ensemble de la plateforme.</p>
+<hr>
+
+<div class="row g-3">
   {% for k, v in stats.items() %}
   <div class="col-md-3">
     <div class="card text-white shadow border-0" style="background: linear-gradient(135deg, #4a148c, #7b1fa2);">
       <div class="card-body text-center">
         <div class="display-5">{{ v }}</div>
-        <div class="text-capitalize">{{ k }}</div>
+        <div>{{ k }}</div>
       </div>
     </div>
   </div>
   {% endfor %}
 </div>
+
+
 {% endblock %}

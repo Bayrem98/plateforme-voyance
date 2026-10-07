@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="{{ url_for('recruteur_voir_candidat', candidat_id=candidat.id) }}"
+   class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left"></i> Retour
+</a>
+
+<h2><i class="bi bi-calendar-plus"></i> Nouveau rendez-vous</h2>
+<p class="text-muted">Avec <strong>{{ candidat.username }}</strong> ({{ candidat.email }})</p>
+<hr>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <form method="POST">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Date *</label>
+              <input type="date" name="date" class="form-control" required
+                     min="{{ '' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Heure *</label>
+              <input type="time" name="heure" class="form-control" required
+                     value="10:00">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Durée (minutes)</label>
+              <select name="duree" class="form-select">
+                <option value="15">15 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">1 heure</option>
+                <option value="90">1h30</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Type de RDV</label>
+              <select name="type_rdv" class="form-select">
+                <option value="Entretien">Entretien</option>
+                <option value="Visio">Visioconférence</option>
+                <option value="Téléphone">Téléphone</option>
+                <option value="Formation">Formation</option>
+                <option value="Suivi">Suivi</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notes (optionnel)</label>
+            <textarea name="notes" class="form-control" rows="4"
+                      placeholder="Sujet du RDV, informations à préparer…"></textarea>
+          </div>
+
+          <button class="btn btn-success w-100">
+            <i class="bi bi-check-circle"></i> Créer le rendez-vous
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-info-circle"></i> Infos candidat
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center mb-2">
+          <div class="avatar-circle">{{ candidat.username[0]|upper }}</div>
+          <div class="ms-3">
+            <strong>{{ candidat.username }}</strong>
+            <br><small class="text-muted">{{ candidat.email }}</small>
+          </div>
+        </div>
+        {% if candidat.formateur %}
+          <hr>
+          <small class="text-muted">Formateur assigné :</small>
+          <br><strong>{{ candidat.formateur.username }}</strong>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+// Mettre la date d'aujourd'hui par défaut
+document.querySelector('input[name="date"]').valueAsDate = new Date();
+</script>
+{% endblock %}
+{% endblock %}
