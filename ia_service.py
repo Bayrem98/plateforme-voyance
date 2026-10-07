@@ -21,12 +21,7 @@ except ImportError:
 # Si un échoue (quota 429, modèle 404), on essaie le suivant
 MODELES_GEMINI = [
     'gemini-3.8-flash',           # ✅ Confirmé fonctionnel
-    'gemini-flash-latest',        # ✅ Alias stable
-    'gemini-2.5-flash',           # ✅ Fallback
-    'gemini-flash-lite-latest',   # ⭐ alias stable
-    'gemini-3.8-flash',           # dernier stable
-    'gemini-flash-latest',        # alias stable
-    'gemini-2.5-pro',             # plus puissant (lent)
+    'gemini-flash-latest',        # ✅ Fallback stable
 ]
 
 
@@ -114,7 +109,10 @@ Réponds UNIQUEMENT en JSON valide :
     for nom_modele in modeles_a_essayer:
         try:
             modele = genai.GenerativeModel(nom_modele)
-            reponse = modele.generate_content(prompt)
+            reponse = modele.generate_content(
+               prompt,
+               request_options={"timeout": 60}  # 60 secondes max
+          )
             print(f"✅ Modèle utilisé : {nom_modele}")
             break
         except Exception as e:
