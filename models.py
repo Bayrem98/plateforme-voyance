@@ -28,6 +28,7 @@ class User(UserMixin, db.Model):
     tentatives = db.relationship('Tentative', backref='user', lazy=True)
     cartes_validees = db.relationship('CarteValidee', backref='user', lazy=True,
                                      cascade='all, delete-orphan')
+    email_fin_formation_envoye = db.Column(db.Boolean, default=False)
     
     # ⚠️ PAS de relationship 'reponses_exercices' ici
     # Il est défini côté ReponseExercice pour éviter l'ambiguïté

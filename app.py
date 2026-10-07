@@ -8,10 +8,14 @@ from datetime import datetime
 from config import Config
 from models import (db, User, Theme, Formation, Question, Tentative,
                     Exercice, ReponseExercice, CarteValidee, RendezVous)
+from mail_service import (init_mail, email_bienvenue_candidat,
+                          email_rdv_candidat, email_rdv_recruteur,
+                          email_felicitations, email_rdv_annule)
 
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
+init_mail(app)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -108,6 +112,23 @@ def calculer_progression_tarot(user_id, theme_id):
     return resultat
 
 
+def verifier_fin_formation(user_id):
+    """Vérifie si un candidat a terminé TOUTE sa formation (toutes les cartes Tarot validées)."""
+    theme_tarot = Theme.query.filter_by(nom='Tarot de Marseille').first()
+    if not theme_tarot:
+        return False
+
+    total_cartes = Formation.query.filter_by(theme_id=theme_tarot.id).count()
+    if total_cartes == 0:
+        return False
+
+    cartes_validees = CarteValidee.query.filter_by(
+        user_id=user_id, theme_id=theme_tarot.id, validee=True
+    ).count()
+
+    return cartes_validees >= total_cartes
+
+
 # ============================================================
 #   AUTH
 # ============================================================
@@ -157,14 +178,13 @@ def dashboard():
 
 
 # ============================================================
-#   CANDIDAT (ex-"recruteur_dashboard")
+#   CANDIDAT
 # ============================================================
 
 @app.route('/candidat')
 @login_required
 @role_required('candidat')
 def candidat_dashboard():
-    """Dashboard du candidat (formations + tests)."""
     themes = Theme.query.all()
     scores = {}
     for t in themes:
@@ -175,7 +195,7 @@ def candidat_dashboard():
 
 
 # ============================================================
-#   TAROT — Cartes progressives (CANDIDAT)
+#   TAROT
 # ============================================================
 
 @app.route('/cartes-tarot/<int:theme_id>')
@@ -294,7 +314,6 @@ def passer_test(exercice_id):
 
     note = resultat_ia['note']
 
-    # Sanction anti-triche
     cle_triche = f'triche_{current_user.id}_{exercice_id}'
     triches = session.get(cle_triche, [])
     nb_triches = len(triches)
@@ -327,7 +346,7 @@ def passer_test(exercice_id):
     deja.valide = valide
     deja.duree_secondes = duree
     deja.corrige_par_ia = True
-    deja.correcteur_id = None   # 🆕 IA = pas de correcteur humain
+    deja.correcteur_id = None
     deja.date_soumission = datetime.utcnow()
     deja.date_correction = datetime.utcnow()
     db.session.commit()
@@ -338,6 +357,21 @@ def passer_test(exercice_id):
     if ex.theme.nom == 'Tarot de Marseille':
         cartes = calculer_progression_tarot(current_user.id, ex.theme_id)
         carte_info = next((c for c in cartes if c['niveau'] == ex.niveau), None)
+
+        # 🏆 FÉLICITATIONS si fin de formation
+        if valide and verifier_fin_formation(current_user.id):
+            if not current_user.email_fin_formation_envoye:
+                try:
+                    email_felicitations(
+                        current_user,
+                        formateur=current_user.formateur,
+                        recruteur=current_user.recruteur
+                    )
+                    current_user.email_fin_formation_envoye = True
+                    db.session.commit()
+                    flash("🏆 Félicitations ! Un email de fin de formation t'a été envoyé.", "success")
+                except Exception as e:
+                    print(f"⚠️  Erreur email félicitations : {e}")
 
     return render_template('recruteur/resultat_test.html',
                            ex=ex, note=note, valide=valide, duree=duree,
@@ -363,7 +397,7 @@ def signaler_triche():
 
 
 # ============================================================
-#   FORMATIONS (Astro / Numérologie)
+#   FORMATIONS
 # ============================================================
 
 @app.route('/formation/<int:theme_id>')
@@ -379,10 +413,6 @@ def voir_formation(theme_id):
     return render_template('recruteur/formation.html',
                            theme=theme, formations=formations)
 
-
-# ============================================================
-#   EXERCICES (Astro / Numérologie)
-# ============================================================
 
 @app.route('/exercices/<int:theme_id>')
 @login_required
@@ -410,7 +440,6 @@ def liste_exercices(theme_id):
 @login_required
 @role_required('formateur')
 def formateur_dashboard():
-    # ✅ CORRIGÉ : role='candidat' (pas 'recruteur')
     candidats = User.query.filter_by(formateur_id=current_user.id,
                                      role='candidat').all()
     data = []
@@ -430,7 +459,6 @@ def formateur_corrections():
         reponses = ReponseExercice.query\
                                   .order_by(ReponseExercice.date_soumission.desc()).all()
     else:
-        # ✅ CORRIGÉ : role='candidat'
         mes_candidats_ids = [u.id for u in User.query.filter_by(
             formateur_id=current_user.id, role='candidat').all()]
         reponses = ReponseExercice.query.filter(
@@ -456,7 +484,6 @@ def corriger_reponse(rep_id):
         rep.statut = 'corrige'
         rep.valide = (rep.note >= 10)
         rep.corrige_par_ia = False
-        # 🆕 Enregistrer qui a corrigé
         rep.correcteur_id = current_user.id
         rep.date_correction = datetime.utcnow()
         db.session.commit()
@@ -530,7 +557,6 @@ def formateur_override_reponse(rep_id):
     rep.statut = 'corrige'
     rep.valide = (nouvelle_note >= 10)
     rep.corrige_par_ia = False
-    # 🆕 Enregistrer qui a corrigé (formateur OU admin)
     rep.correcteur_id = current_user.id
     rep.date_correction = datetime.utcnow()
     db.session.commit()
@@ -547,11 +573,9 @@ def formateur_override_reponse(rep_id):
 @login_required
 @role_required('recruteur')
 def recruteur_dash():
-    """Dashboard du recruteur : ses candidats + RDV à venir."""
     candidats = User.query.filter_by(recruteur_id=current_user.id,
                                      role='candidat').all()
 
-    # Stats simples par candidat (juste le formateur assigné)
     data = []
     for c in candidats:
         data.append({
@@ -560,9 +584,7 @@ def recruteur_dash():
         })
 
     formateurs = User.query.filter_by(role='formateur').all()
-    
-    # 🆕 RDV à venir
-    from datetime import datetime
+
     rdvs_a_venir = RendezVous.query.filter_by(recruteur_id=current_user.id)\
                                   .filter(RendezVous.date_heure >= datetime.utcnow())\
                                   .filter(RendezVous.statut == 'planifie')\
@@ -576,8 +598,9 @@ def recruteur_dash():
 
 @app.route('/recruteur/creer-candidat', methods=['POST'])
 @login_required
-@role_required('recruteur')   # ✅ CORRIGÉ
+@role_required('recruteur')
 def recruteur_creer_candidat():
+    """Créer un nouveau candidat + envoyer email de bienvenue avec mot de passe."""
     username = request.form.get('username')
     email = request.form.get('email')
     password = request.form.get('password')
@@ -588,7 +611,8 @@ def recruteur_creer_candidat():
         return redirect(url_for('recruteur_dash'))
 
     candidat = User(
-        username=username, email=email,
+        username=username,
+        email=email,
         password=generate_password_hash(password),
         role='candidat',
         formateur_id=int(formateur_id) if formateur_id else None,
@@ -596,7 +620,18 @@ def recruteur_creer_candidat():
     )
     db.session.add(candidat)
     db.session.commit()
-    flash(f"✅ Candidat {username} créé.", "success")
+
+    try:
+        formateur = candidat.formateur
+        envoye = email_bienvenue_candidat(candidat, formateur, password)
+        if envoye:
+            flash(f"✅ Candidat {username} créé et email envoyé à {email}.", "success")
+        else:
+            flash(f"✅ Candidat {username} créé (⚠️ email non envoyé).", "warning")
+    except Exception as e:
+        print(f"⚠️  Erreur email : {e}")
+        flash(f"✅ Candidat {username} créé (⚠️ email non envoyé).", "warning")
+
     return redirect(url_for('recruteur_dash'))
 
 
@@ -604,21 +639,17 @@ def recruteur_creer_candidat():
 @login_required
 @role_required('recruteur')
 def recruteur_voir_candidat(candidat_id):
-    """Vue recruteur : coordonnées du candidat + formateur assigné (PAS les réponses)."""
     candidat = User.query.get_or_404(candidat_id)
     if candidat.recruteur_id != current_user.id:
         flash("Accès refusé.", "danger")
         return redirect(url_for('recruteur_dash'))
-
-    # 🚫 On ne charge PAS les réponses
-    # Le recruteur voit juste les coordonnées et le formateur
     return render_template('recruteur/candidat_detail.html',
                            candidat=candidat)
 
 
 @app.route('/recruteur/candidat/<int:candidat_id>/supprimer')
 @login_required
-@role_required('recruteur')   # ✅ CORRIGÉ
+@role_required('recruteur')
 def recruteur_supprimer_candidat(candidat_id):
     candidat = User.query.get_or_404(candidat_id)
     if candidat.recruteur_id != current_user.id:
@@ -641,8 +672,8 @@ def recruteur_supprimer_candidat(candidat_id):
 def admin_dashboard():
     stats = {
         'Utilisateurs': User.query.count(),
-        'Candidats': User.query.filter_by(role='candidat').count(),    # ✅ CORRIGÉ
-        'Recruteurs': User.query.filter_by(role='recruteur').count(),  # 🆕
+        'Candidats': User.query.filter_by(role='candidat').count(),
+        'Recruteurs': User.query.filter_by(role='recruteur').count(),
         'Formateurs': User.query.filter_by(role='formateur').count(),
         'Thèmes': Theme.query.count(),
         'Questions': Question.query.count(),
@@ -687,7 +718,20 @@ def admin_create_user():
     )
     db.session.add(user)
     db.session.commit()
-    flash(f"Utilisateur {username} créé.", "success")
+
+    if role == 'candidat':
+        try:
+            envoye = email_bienvenue_candidat(user, user.formateur, password)
+            if envoye:
+                flash(f"✅ Utilisateur {username} créé et email envoyé.", "success")
+            else:
+                flash(f"✅ Utilisateur {username} créé (⚠️ email non envoyé).", "warning")
+        except Exception as e:
+            print(f"⚠️  Erreur email : {e}")
+            flash(f"✅ Utilisateur {username} créé (⚠️ email non envoyé).", "warning")
+    else:
+        flash(f"Utilisateur {username} créé.", "success")
+
     return redirect(url_for('admin_users'))
 
 
@@ -800,12 +844,15 @@ def admin_delete_exercice(ex_id):
     flash("🗑️ Exercice supprimé.", "success")
     return redirect(url_for('admin_exercices'))
 
-# ALIAS pour compatibilité — à ajouter à la fin de app.py
+
+# ============================================================
+#   ALIAS
+# ============================================================
+
 @app.route('/recruteur-old')
 @login_required
 @role_required('candidat')
 def recruteur_dashboard():
-    """Alias vers candidat_dashboard pour compatibilité avec anciens templates."""
     return redirect(url_for('candidat_dashboard'))
 
 
@@ -817,42 +864,35 @@ def recruteur_dashboard():
 @login_required
 @role_required('recruteur')
 def recruteur_calendrier():
-    """Vue calendrier mensuel des RDV du recruteur."""
-    # Mois courant (par défaut) ou mois passé en paramètre
     mois = request.args.get('mois', type=int) or datetime.utcnow().month
     annee = request.args.get('annee', type=int) or datetime.utcnow().year
-    
-    # Récupérer tous les RDV du mois
-    from calendar import monthrange
+
+    from calendar import monthrange, monthcalendar
+    from datetime import date
     premier_jour = datetime(annee, mois, 1)
     dernier_jour_num = monthrange(annee, mois)[1]
     dernier_jour = datetime(annee, mois, dernier_jour_num, 23, 59, 59)
-    
+
     rdvs = RendezVous.query.filter_by(recruteur_id=current_user.id)\
                            .filter(RendezVous.date_heure >= premier_jour)\
                            .filter(RendezVous.date_heure <= dernier_jour)\
                            .order_by(RendezVous.date_heure).all()
-    
-    # Indexer par jour
+
     rdvs_par_jour = {}
     for r in rdvs:
         jour = r.date_heure.day
         rdvs_par_jour.setdefault(jour, []).append(r)
-    
-    # Calculer les infos du calendrier
-    from calendar import monthcalendar
-    from datetime import date
+
     semaines = monthcalendar(annee, mois)
-    
+
     mois_noms = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-    
-    # Mois précédent / suivant
+
     mois_prec = mois - 1 if mois > 1 else 12
     annee_prec = annee if mois > 1 else annee - 1
     mois_suiv = mois + 1 if mois < 12 else 1
     annee_suiv = annee if mois < 12 else annee + 1
-    
+
     return render_template('recruteur/calendrier.html',
                            rdvs_par_jour=rdvs_par_jour,
                            semaines=semaines,
@@ -867,21 +907,19 @@ def recruteur_calendrier():
 @login_required
 @role_required('recruteur')
 def recruteur_nouveau_rdv(candidat_id):
-    """Créer un nouveau RDV avec un candidat."""
     candidat = User.query.get_or_404(candidat_id)
-    
+
     if candidat.recruteur_id != current_user.id:
         flash("Accès refusé.", "danger")
         return redirect(url_for('recruteur_dash'))
-    
+
     if request.method == 'POST':
         try:
-            # Récupérer la date et l'heure
-            date_str = request.form.get('date')  # format YYYY-MM-DD
-            heure_str = request.form.get('heure')  # format HH:MM
-            
+            date_str = request.form.get('date')
+            heure_str = request.form.get('heure')
+
             date_heure = datetime.strptime(f"{date_str} {heure_str}", "%Y-%m-%d %H:%M")
-            
+
             rdv = RendezVous(
                 recruteur_id=current_user.id,
                 candidat_id=candidat_id,
@@ -893,12 +931,19 @@ def recruteur_nouveau_rdv(candidat_id):
             )
             db.session.add(rdv)
             db.session.commit()
-            
-            flash(f"✅ RDV planifié avec {candidat.username} le {date_heure.strftime('%d/%m/%Y à %H:%M')}.", "success")
+
+            try:
+                email_rdv_candidat(candidat, rdv, current_user)
+                email_rdv_recruteur(candidat, rdv, current_user)
+                flash(f"✅ RDV planifié et emails envoyés.", "success")
+            except Exception as e:
+                print(f"⚠️  Erreur email : {e}")
+                flash(f"✅ RDV planifié (⚠️ emails non envoyés).", "warning")
+
             return redirect(url_for('recruteur_calendrier'))
         except ValueError as e:
             flash(f"❌ Date/heure invalide : {e}", "danger")
-    
+
     return render_template('recruteur/nouveau_rdv.html', candidat=candidat)
 
 
@@ -906,14 +951,10 @@ def recruteur_nouveau_rdv(candidat_id):
 @login_required
 @role_required('recruteur', 'admin')
 def recruteur_voir_rdv(rdv_id):
-    """Voir un RDV en détail (accessible au recruteur propriétaire + admin)."""
     rdv = RendezVous.query.get_or_404(rdv_id)
-    
-    # L'admin peut voir tous les RDV ; le recruteur seulement les siens
     if current_user.role == 'recruteur' and rdv.recruteur_id != current_user.id:
         flash("Accès refusé.", "danger")
         return redirect(url_for('recruteur_calendrier'))
-    
     return render_template('recruteur/rdv_detail.html', rdv=rdv)
 
 
@@ -925,13 +966,25 @@ def recruteur_changer_statut_rdv(rdv_id):
     if current_user.role == 'recruteur' and rdv.recruteur_id != current_user.id:
         flash("Accès refusé.", "danger")
         return redirect(url_for('recruteur_calendrier'))
-    
+
+    ancien_statut = rdv.statut
     nouveau_statut = request.form.get('statut')
+
     if nouveau_statut in ['planifie', 'termine', 'annule']:
         rdv.statut = nouveau_statut
         db.session.commit()
-        flash(f"✅ Statut du RDV mis à jour : {nouveau_statut}.", "success")
-    
+
+        # 🆕 Email d'annulation si le statut passe à "annule"
+        if nouveau_statut == 'annule' and ancien_statut != 'annule':
+            try:
+                email_rdv_annule(rdv.candidat, rdv, rdv.recruteur)
+                flash("✅ Statut mis à jour. Email d'annulation envoyé au candidat.", "success")
+            except Exception as e:
+                print(f"⚠️  Erreur email : {e}")
+                flash("✅ Statut mis à jour (⚠️ email non envoyé).", "warning")
+        else:
+            flash(f"✅ Statut du RDV mis à jour : {nouveau_statut}.", "success")
+
     return redirect(url_for('recruteur_voir_rdv', rdv_id=rdv_id))
 
 
@@ -939,12 +992,11 @@ def recruteur_changer_statut_rdv(rdv_id):
 @login_required
 @role_required('recruteur')
 def recruteur_supprimer_rdv(rdv_id):
-    """Supprimer un RDV."""
     rdv = RendezVous.query.get_or_404(rdv_id)
     if rdv.recruteur_id != current_user.id:
         flash("Accès refusé.", "danger")
         return redirect(url_for('recruteur_calendrier'))
-    
+
     db.session.delete(rdv)
     db.session.commit()
     flash("🗑️ RDV supprimé.", "success")
@@ -952,43 +1004,38 @@ def recruteur_supprimer_rdv(rdv_id):
 
 
 # ============================================================
-#   FORMATEUR — Voir les RDV de ses candidats
+#   FORMATEUR — Voir les RDV
 # ============================================================
 
 @app.route('/formateur/rdv')
 @login_required
 @role_required('formateur')
 def formateur_rdv():
-    """Voir les RDV de ses candidats."""
     candidats_ids = [u.id for u in User.query.filter_by(
         formateur_id=current_user.id, role='candidat').all()]
-    
+
     rdvs = RendezVous.query.filter(RendezVous.candidat_id.in_(candidats_ids))\
                            .order_by(RendezVous.date_heure.desc()).all()
-    
+
     return render_template('formateur/rdv.html', rdvs=rdvs)
 
+
 # ============================================================
-#   ADMIN — Gestion des RDV
+#   ADMIN — RDV
 # ============================================================
 
 @app.route('/admin/rdv')
 @login_required
 @role_required('admin')
 def admin_rdv():
-    """Admin voit TOUS les RDV de la plateforme."""
-    from datetime import datetime
     rdvs = RendezVous.query.order_by(RendezVous.date_heure.desc()).all()
-    
-    # Séparer : futurs / passés
+
     maintenant = datetime.utcnow()
     futurs = [r for r in rdvs if r.date_heure >= maintenant and r.statut == 'planifie']
     passes = [r for r in rdvs if r.date_heure < maintenant or r.statut != 'planifie']
-    
+
     return render_template('admin/rdv.html',
-                           rdvs=rdvs,
-                           futurs=futurs,
-                           passes=passes,
+                           rdvs=rdvs, futurs=futurs, passes=passes,
                            total=len(rdvs))
 
 
@@ -996,20 +1043,18 @@ def admin_rdv():
 @login_required
 @role_required('admin')
 def admin_nouveau_rdv():
-    """Admin peut créer un RDV pour n'importe quel candidat."""
-    # Liste des candidats
     candidats = User.query.filter_by(role='candidat').order_by(User.username).all()
     recruteurs = User.query.filter_by(role='recruteur').all()
-    
+
     if request.method == 'POST':
         try:
             candidat_id = int(request.form.get('candidat_id'))
             recruteur_id = request.form.get('recruteur_id') or None
-            
+
             date_str = request.form.get('date')
             heure_str = request.form.get('heure')
             date_heure = datetime.strptime(f"{date_str} {heure_str}", "%Y-%m-%d %H:%M")
-            
+
             rdv = RendezVous(
                 candidat_id=candidat_id,
                 recruteur_id=int(recruteur_id) if recruteur_id else current_user.id,
@@ -1021,22 +1066,29 @@ def admin_nouveau_rdv():
             )
             db.session.add(rdv)
             db.session.commit()
-            
-            flash(f"✅ RDV créé pour le {date_heure.strftime('%d/%m/%Y à %H:%M')}.", "success")
+
+            try:
+                candidat = User.query.get(candidat_id)
+                recruteur = rdv.recruteur
+                email_rdv_candidat(candidat, rdv, recruteur)
+                email_rdv_recruteur(candidat, rdv, recruteur)
+                flash(f"✅ RDV créé et emails envoyés.", "success")
+            except Exception as e:
+                print(f"⚠️  Erreur email : {e}")
+                flash(f"✅ RDV créé (⚠️ emails non envoyés).", "warning")
+
             return redirect(url_for('admin_rdv'))
         except (ValueError, TypeError) as e:
             flash(f"❌ Erreur : {e}", "danger")
-    
+
     return render_template('admin/nouveau_rdv.html',
-                           candidats=candidats,
-                           recruteurs=recruteurs)
+                           candidats=candidats, recruteurs=recruteurs)
 
 
 @app.route('/admin/rdv/<int:rdv_id>/supprimer')
 @login_required
 @role_required('admin')
 def admin_supprimer_rdv(rdv_id):
-    """Supprimer un RDV."""
     rdv = RendezVous.query.get_or_404(rdv_id)
     db.session.delete(rdv)
     db.session.commit()
@@ -1045,73 +1097,67 @@ def admin_supprimer_rdv(rdv_id):
 
 
 # ============================================================
-#   ADMIN — Modifier un utilisateur
+#   ADMIN — Modifier / Supprimer utilisateur
 # ============================================================
 
 @app.route('/admin/users/<int:uid>/edit', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def admin_edit_user(uid):
-    """Modifier un utilisateur."""
     user = User.query.get_or_404(uid)
-    
+
     if request.method == 'POST':
         user.username = request.form.get('username', user.username)
         user.email = request.form.get('email', user.email)
-        
-        # Changer le mot de passe (optionnel)
+
         nouveau_mdp = request.form.get('password', '').strip()
         if nouveau_mdp:
             user.password = generate_password_hash(nouveau_mdp)
-        
-        # Changer le rôle (sauf pour soi-même)
+
         nouveau_role = request.form.get('role', user.role)
         if user.id != current_user.id:
             user.role = nouveau_role
-        
-        # Assignations (si candidat)
+
         if user.role == 'candidat':
             formateur_id = request.form.get('formateur_id') or None
             recruteur_id = request.form.get('recruteur_id') or None
             user.formateur_id = int(formateur_id) if formateur_id else None
             user.recruteur_id = int(recruteur_id) if recruteur_id else None
-        
+
         user.actif = 'actif' in request.form
-        
+
         db.session.commit()
         flash(f"✅ Utilisateur {user.username} modifié.", "success")
         return redirect(url_for('admin_users'))
-    
+
     formateurs = User.query.filter_by(role='formateur').all()
     recruteurs = User.query.filter_by(role='recruteur').all()
-    
+
     return render_template('admin/user_edit.html',
-                           user=user,
-                           formateurs=formateurs,
+                           user=user, formateurs=formateurs,
                            recruteurs=recruteurs)
 
-
-# ============================================================
-#   ADMIN — Supprimer un utilisateur
-# ============================================================
 
 @app.route('/admin/users/<int:uid>/delete')
 @login_required
 @role_required('admin')
 def admin_delete_user(uid):
-    """Supprimer définitivement un utilisateur."""
     user = User.query.get_or_404(uid)
-    
-    # Empêcher l'admin de se supprimer lui-même
+
     if user.id == current_user.id:
         flash("❌ Tu ne peux pas te supprimer toi-même.", "danger")
         return redirect(url_for('admin_users'))
-    
+
     username = user.username
     db.session.delete(user)
     db.session.commit()
     flash(f"🗑️ Utilisateur {username} supprimé.", "success")
     return redirect(url_for('admin_users'))
+
+
+# ============================================================
+#   INIT
+# ============================================================
 
 if __name__ == '__main__':
     with app.app_context():
