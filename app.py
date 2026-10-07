@@ -139,16 +139,15 @@ def debug_db():
     """Route temporaire pour vérifier la connexion à la BDD."""
     import os
     from models import db, Theme, Formation, User
-    
+
     db_url = os.environ.get('DATABASE_URL', 'NOT SET')
-    # Masquer le mot de passe
     if '@' in db_url:
         parts = db_url.split('@')
         prefix = parts[0].split('://')[0] + '://***:***'
         db_url_masked = prefix + '@' + parts[1]
     else:
         db_url_masked = db_url
-    
+
     return f"""
     <h2>🔍 Debug BDD</h2>
     <p><strong>DATABASE_URL :</strong> {db_url_masked}</p>
@@ -160,6 +159,7 @@ def debug_db():
     {''.join(f'<li>{t.nom} : {len(t.formations)} formations</li>' for t in Theme.query.all())}
     </ul>
     """
+
 
 @app.route('/')
 def index():
@@ -628,7 +628,7 @@ def recruteur_dash():
 @login_required
 @role_required('recruteur')
 def recruteur_creer_candidat():
-    """Créer un nouveau candidat + envoyer email de bienvenue avec mot de passe."""
+    """Créer un nouveau candidat + envoyer email de bienvenue (ASYNCHRONE)."""
     username = request.form.get('username')
     email = request.form.get('email')
     password = request.form.get('password')
@@ -649,13 +649,11 @@ def recruteur_creer_candidat():
     db.session.add(candidat)
     db.session.commit()
 
+    # 📧 Email en arrière-plan (ne bloque plus la requête)
     try:
         formateur = candidat.formateur
-        envoye = email_bienvenue_candidat(candidat, formateur, password)
-        if envoye:
-            flash(f"✅ Candidat {username} créé et email envoyé à {email}.", "success")
-        else:
-            flash(f"✅ Candidat {username} créé (⚠️ email non envoyé).", "warning")
+        email_bienvenue_candidat(candidat, formateur, password)
+        flash(f"✅ Candidat {username} créé. Email en cours d'envoi à {email}.", "success")
     except Exception as e:
         print(f"⚠️  Erreur email : {e}")
         flash(f"✅ Candidat {username} créé (⚠️ email non envoyé).", "warning")
@@ -747,13 +745,11 @@ def admin_create_user():
     db.session.add(user)
     db.session.commit()
 
+    # 📧 Email en arrière-plan si candidat
     if role == 'candidat':
         try:
-            envoye = email_bienvenue_candidat(user, user.formateur, password)
-            if envoye:
-                flash(f"✅ Utilisateur {username} créé et email envoyé.", "success")
-            else:
-                flash(f"✅ Utilisateur {username} créé (⚠️ email non envoyé).", "warning")
+            email_bienvenue_candidat(user, user.formateur, password)
+            flash(f"✅ Utilisateur {username} créé. Email en cours d'envoi.", "success")
         except Exception as e:
             print(f"⚠️  Erreur email : {e}")
             flash(f"✅ Utilisateur {username} créé (⚠️ email non envoyé).", "warning")
@@ -1002,7 +998,6 @@ def recruteur_changer_statut_rdv(rdv_id):
         rdv.statut = nouveau_statut
         db.session.commit()
 
-        # 🆕 Email d'annulation si le statut passe à "annule"
         if nouveau_statut == 'annule' and ancien_statut != 'annule':
             try:
                 email_rdv_annule(rdv.candidat, rdv, rdv.recruteur)
@@ -1171,44 +1166,36 @@ def admin_edit_user(uid):
 @role_required('admin')
 def admin_delete_user(uid):
     user = User.query.get_or_404(uid)
-    
-    # Empêcher l'admin de se supprimer lui-même
+
     if user.id == current_user.id:
         flash("❌ Tu ne peux pas te supprimer toi-même.", "danger")
         return redirect(url_for('admin_users'))
-    
-    # Empêcher la suppression d'un autre admin (sécurité)
+
     if user.role == 'admin':
         flash("❌ Tu ne peux pas supprimer un autre admin.", "danger")
         return redirect(url_for('admin_users'))
-    
+
     username = user.username
-    
+
     try:
-        # Supprimer d'abord les dépendances
         from models import ReponseExercice, CarteValidee, RendezVous
-        
-        # Supprimer les réponses de l'exercice
+
         ReponseExercice.query.filter_by(user_id=user.id).delete()
-        
-        # Supprimer les cartes validées
         CarteValidee.query.filter_by(user_id=user.id).delete()
-        
-        # Supprimer les RDV (candidat ET recruteur)
         RendezVous.query.filter_by(candidat_id=user.id).delete()
         RendezVous.query.filter_by(recruteur_id=user.id).delete()
-        
-        # Enfin, supprimer l'utilisateur
+
         db.session.delete(user)
         db.session.commit()
-        
+
         flash(f"🗑️ Utilisateur {username} supprimé.", "success")
     except Exception as e:
         db.session.rollback()
         print(f"⚠️  Erreur suppression : {e}")
         flash(f"❌ Impossible de supprimer {username} : {str(e)[:100]}", "danger")
-    
+
     return redirect(url_for('admin_users'))
+
 
 # ============================================================
 #   GESTION DES ERREURS
@@ -1219,6 +1206,7 @@ def internal_error(error):
     db.session.rollback()
     flash("❌ Une erreur est survenue. Réessaie ou contacte l'administrateur.", "danger")
     return redirect(url_for('dashboard'))
+
 
 @app.errorhandler(404)
 def not_found_error(error):
@@ -1233,6 +1221,5 @@ def not_found_error(error):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    # En production, Render utilise la variable PORT
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

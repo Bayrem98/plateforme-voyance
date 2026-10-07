@@ -1,6 +1,8 @@
 """
 Service d'envoi d'emails via Flask-Mail.
+Envoi asynchrone pour ne pas bloquer les requêtes.
 """
+import threading
 from flask_mail import Mail, Message
 from flask import current_app
 
@@ -13,7 +15,7 @@ def init_mail(app):
 
 
 def _envoyer(destinataire, sujet, corps_html, corps_texte=None):
-    """Fonction interne pour envoyer un email."""
+    """Fonction interne SYNCHRONE pour envoyer un email."""
     try:
         msg = Message(
             subject=sujet,
@@ -29,10 +31,32 @@ def _envoyer(destinataire, sujet, corps_html, corps_texte=None):
         return False
 
 
+def _envoyer_async(app, destinataire, sujet, corps_html, corps_texte=None):
+    """
+    Envoie un email dans un thread séparé (non bloquant).
+    Retourne True immédiatement pour ne pas ralentir l'utilisateur.
+    """
+    def _worker():
+        try:
+            with app.app_context():
+                _envoyer(destinataire, sujet, corps_html, corps_texte)
+        except Exception as e:
+            print(f"⚠️  Erreur thread email : {e}")
+
+    thread = threading.Thread(target=_worker)
+    thread.daemon = True
+    thread.start()
+    return True
+
+
+# ═══════════════════════════════════════════════════════════
+#   EMAIL : BIENVENUE CANDIDAT
+# ═══════════════════════════════════════════════════════════
+
 def email_bienvenue_candidat(candidat, formateur=None, mot_de_passe=None):
-    """Email de bienvenue envoyé au nouveau candidat."""
+    """Email de bienvenue envoyé au nouveau candidat (ASYNCHRONE)."""
     sujet = "🎓 Bienvenue sur Voyance Academy"
-    
+
     formateur_info = ""
     if formateur:
         formateur_info = f"""
@@ -42,8 +66,7 @@ def email_bienvenue_candidat(candidat, formateur=None, mot_de_passe=None):
             (<a href="mailto:{formateur.email}">{formateur.email}</a>)
         </p>
         """
-    
-    # 🆕 Bloc identifiants avec MOT DE PASSE
+
     if mot_de_passe:
         identifiants_html = f"""
         <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #7b1fa2; margin: 20px 0;">
@@ -67,34 +90,34 @@ def email_bienvenue_candidat(candidat, formateur=None, mot_de_passe=None):
             </p>
         </div>
         """
-    
+
     corps = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #4a148c, #7b1fa2); color: white; padding: 30px; text-align: center; border-radius: 15px 15px 0 0;">
             <h1 style="margin: 0;">🔮 Voyance Academy</h1>
             <p style="margin: 10px 0 0 0;">Bienvenue dans ta formation</p>
         </div>
-        
+
         <div style="background: #f9f5ff; padding: 30px; border-radius: 0 0 15px 15px;">
             <p>Bonjour <strong>{candidat.username}</strong>,</p>
-            
+
             <p>🎉 Ton compte candidat a été créé avec succès !</p>
-            
+
             <p>Voici tes identifiants pour te connecter :</p>
-            
+
             {identifiants_html}
-            
+
             {formateur_info}
-            
+
             <div style="text-align: center; margin: 30px 0;">
-                <a href="{current_app.config['BASE_URL']}/login" 
+                <a href="{current_app.config['BASE_URL']}/login"
                    style="background: linear-gradient(135deg, #4a148c, #7b1fa2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
                     🚀 Accéder à ma formation
                 </a>
             </div>
-            
+
             <hr style="border: none; border-top: 1px solid #e0d5ec; margin: 30px 0;">
-            
+
             <p style="font-size: 0.9rem; color: #666;">
                 À bientôt sur la plateforme !<br>
                 L'équipe Voyance Academy
@@ -102,25 +125,30 @@ def email_bienvenue_candidat(candidat, formateur=None, mot_de_passe=None):
         </div>
     </div>
     """
-    
-    return _envoyer(candidat.email, sujet, corps)
 
+    return _envoyer_async(current_app._get_current_object(),
+                          candidat.email, sujet, corps)
+
+
+# ═══════════════════════════════════════════════════════════
+#   EMAIL : RDV PLANIFIÉ (CANDIDAT)
+# ═══════════════════════════════════════════════════════════
 
 def email_rdv_candidat(candidat, rdv, recruteur):
-    """Email envoyé au candidat pour l'informer d'un RDV."""
+    """Email envoyé au candidat pour l'informer d'un RDV (ASYNCHRONE)."""
     sujet = f"📅 RDV planifié : {rdv.date_heure.strftime('%d/%m/%Y à %H:%M')}"
-    
+
     corps = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #4a148c, #7b1fa2); color: white; padding: 30px; text-align: center; border-radius: 15px 15px 0 0;">
             <h1 style="margin: 0;">📅 Rendez-vous planifié</h1>
         </div>
-        
+
         <div style="background: #f9f5ff; padding: 30px; border-radius: 0 0 15px 15px;">
             <p>Bonjour <strong>{candidat.username}</strong>,</p>
-            
+
             <p>Un entretien a été planifié pour toi :</p>
-            
+
             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #7b1fa2; margin: 20px 0;">
                 <p style="margin: 8px 0;"><strong>📅 Date :</strong> {rdv.date_heure.strftime('%A %d %B %Y')}</p>
                 <p style="margin: 8px 0;"><strong>🕐 Heure :</strong> {rdv.date_heure.strftime('%H:%M')}</p>
@@ -129,13 +157,13 @@ def email_rdv_candidat(candidat, rdv, recruteur):
                 <p style="margin: 8px 0;"><strong>👤 Recruteur :</strong> {recruteur.username}</p>
                 <p style="margin: 8px 0;"><strong>📧 Contact :</strong> <a href="mailto:{recruteur.email}">{recruteur.email}</a></p>
             </div>
-            
+
             {'<p><strong>📝 Notes :</strong><br>' + rdv.notes + '</p>' if rdv.notes else ''}
-            
+
             <p>Prépare-toi bien et sois à l'heure ! 🎯</p>
-            
+
             <hr style="border: none; border-top: 1px solid #e0d5ec; margin: 30px 0;">
-            
+
             <p style="font-size: 0.9rem; color: #666;">
                 À bientôt,<br>
                 L'équipe Voyance Academy
@@ -143,25 +171,30 @@ def email_rdv_candidat(candidat, rdv, recruteur):
         </div>
     </div>
     """
-    
-    return _envoyer(candidat.email, sujet, corps)
 
+    return _envoyer_async(current_app._get_current_object(),
+                          candidat.email, sujet, corps)
+
+
+# ═══════════════════════════════════════════════════════════
+#   EMAIL : RDV CONFIRMÉ (RECRUTEUR)
+# ═══════════════════════════════════════════════════════════
 
 def email_rdv_recruteur(candidat, rdv, recruteur):
-    """Email envoyé au recruteur pour confirmer le RDV."""
+    """Email envoyé au recruteur pour confirmer le RDV (ASYNCHRONE)."""
     sujet = f"📅 RDV confirmé avec {candidat.username}"
-    
+
     corps = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #4a148c, #7b1fa2); color: white; padding: 30px; text-align: center; border-radius: 15px 15px 0 0;">
             <h1 style="margin: 0;">✅ RDV confirmé</h1>
         </div>
-        
+
         <div style="background: #f9f5ff; padding: 30px; border-radius: 0 0 15px 15px;">
             <p>Bonjour <strong>{recruteur.username}</strong>,</p>
-            
+
             <p>Ton rendez-vous avec <strong>{candidat.username}</strong> est confirmé :</p>
-            
+
             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #7b1fa2; margin: 20px 0;">
                 <p style="margin: 8px 0;"><strong>📅 Date :</strong> {rdv.date_heure.strftime('%A %d %B %Y')}</p>
                 <p style="margin: 8px 0;"><strong>🕐 Heure :</strong> {rdv.date_heure.strftime('%H:%M')}</p>
@@ -169,16 +202,16 @@ def email_rdv_recruteur(candidat, rdv, recruteur):
                 <p style="margin: 8px 0;"><strong>👤 Candidat :</strong> {candidat.username}</p>
                 <p style="margin: 8px 0;"><strong>📧 Email candidat :</strong> <a href="mailto:{candidat.email}">{candidat.email}</a></p>
             </div>
-            
+
             <div style="text-align: center; margin: 30px 0;">
-                <a href="{current_app.config['BASE_URL']}/recruteur/calendrier" 
+                <a href="{current_app.config['BASE_URL']}/recruteur/calendrier"
                    style="background: linear-gradient(135deg, #4a148c, #7b1fa2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
                     📅 Voir mon calendrier
                 </a>
             </div>
-            
+
             <hr style="border: none; border-top: 1px solid #e0d5ec; margin: 30px 0;">
-            
+
             <p style="font-size: 0.9rem; color: #666;">
                 Bon entretien !<br>
                 L'équipe Voyance Academy
@@ -186,14 +219,19 @@ def email_rdv_recruteur(candidat, rdv, recruteur):
         </div>
     </div>
     """
-    
-    return _envoyer(recruteur.email, sujet, corps)
 
+    return _envoyer_async(current_app._get_current_object(),
+                          recruteur.email, sujet, corps)
+
+
+# ═══════════════════════════════════════════════════════════
+#   EMAIL : FÉLICITATIONS
+# ═══════════════════════════════════════════════════════════
 
 def email_felicitations(candidat, formateur=None, recruteur=None):
-    """Email de félicitations quand le candidat termine sa formation."""
+    """Email de félicitations quand le candidat termine sa formation (ASYNCHRONE)."""
     sujet = "🏆 Félicitations ! Tu as terminé ta formation"
-    
+
     formateur_info = ""
     if formateur:
         formateur_info = f"""
@@ -202,7 +240,7 @@ def email_felicitations(candidat, formateur=None, recruteur=None):
             (<a href="mailto:{formateur.email}">{formateur.email}</a>)
         </p>
         """
-    
+
     recruteur_info = ""
     if recruteur:
         recruteur_info = f"""
@@ -211,7 +249,7 @@ def email_felicitations(candidat, formateur=None, recruteur=None):
             (<a href="mailto:{recruteur.email}">{recruteur.email}</a>)
         </p>
         """
-    
+
     corps = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #f57c00, #ff9800); color: white; padding: 40px 30px; text-align: center; border-radius: 15px 15px 0 0;">
@@ -219,15 +257,15 @@ def email_felicitations(candidat, formateur=None, recruteur=None):
             <h1 style="margin: 10px 0;">Félicitations {candidat.username} !</h1>
             <p style="margin: 10px 0 0 0; font-size: 1.1rem;">Tu as terminé ta formation avec succès 🎉</p>
         </div>
-        
+
         <div style="background: #fff9e6; padding: 30px; border-radius: 0 0 15px 15px;">
             <p>Bonjour <strong>{candidat.username}</strong>,</p>
-            
+
             <p style="font-size: 1.05rem;">
                 🎊 <strong>Bravo !</strong> Tu as validé l'ensemble de ta formation sur la plateforme Voyance Academy.
                 C'est un accomplissement remarquable qui démontre ton sérieux et ta détermination.
             </p>
-            
+
             <div style="background: white; padding: 25px; border-radius: 10px; border-left: 5px solid #ff9800; margin: 25px 0;">
                 <h3 style="margin-top: 0; color: #e65100;">🎯 Prochaine étape : Rejoins l'équipe !</h3>
                 <p>
@@ -244,7 +282,7 @@ def email_felicitations(candidat, formateur=None, recruteur=None):
                 </p>
                 {recruteur_info}
             </div>
-            
+
             <div style="background: #e8f5e9; padding: 20px; border-radius: 10px; margin: 20px 0;">
                 <p style="margin: 0;">
                     <strong>💼 Ce qui t'attend :</strong>
@@ -255,21 +293,21 @@ def email_felicitations(candidat, formateur=None, recruteur=None):
                     <li>Accompagnement continu de ton formateur</li>
                 </ul>
             </div>
-            
+
             <p style="font-size: 1.05rem;">
                 Nous sommes <strong>très fiers</strong> de ton parcours.
                 Bienvenue dans l'équipe ! 🌟
             </p>
-            
+
             <div style="text-align: center; margin: 30px 0;">
-                <a href="{current_app.config['BASE_URL']}/login" 
+                <a href="{current_app.config['BASE_URL']}/login"
                    style="background: linear-gradient(135deg, #f57c00, #ff9800); color: white; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block; font-size: 1.05rem;">
                     🚀 Accéder à mon espace
                 </a>
             </div>
-            
+
             <hr style="border: none; border-top: 2px dashed #ffcc80; margin: 30px 0;">
-            
+
             <p style="text-align: center; color: #666;">
                 <strong>🔮 Voyance Academy</strong><br>
                 <small>L'équipe qui croit en toi</small>
@@ -277,14 +315,19 @@ def email_felicitations(candidat, formateur=None, recruteur=None):
         </div>
     </div>
     """
-    
-    return _envoyer(candidat.email, sujet, corps)
 
+    return _envoyer_async(current_app._get_current_object(),
+                          candidat.email, sujet, corps)
+
+
+# ═══════════════════════════════════════════════════════════
+#   EMAIL : RDV ANNULÉ
+# ═══════════════════════════════════════════════════════════
 
 def email_rdv_annule(candidat, rdv, recruteur, raison=None):
-    """Email envoyé au candidat quand un RDV est annulé."""
+    """Email envoyé au candidat quand un RDV est annulé (ASYNCHRONE)."""
     sujet = f"❌ RDV annulé : {rdv.date_heure.strftime('%d/%m/%Y à %H:%M')}"
-    
+
     raison_html = ""
     if raison:
         raison_html = f"""
@@ -292,21 +335,21 @@ def email_rdv_annule(candidat, rdv, recruteur, raison=None):
             <p style="margin: 0;"><strong>❓ Raison :</strong> {raison}</p>
         </div>
         """
-    
+
     corps = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #b71c1c, #f44336); color: white; padding: 30px; text-align: center; border-radius: 15px 15px 0 0;">
             <h1 style="margin: 0;">❌ RDV annulé</h1>
         </div>
-        
+
         <div style="background: #fef2f2; padding: 30px; border-radius: 0 0 15px 15px;">
             <p>Bonjour <strong>{candidat.username}</strong>,</p>
-            
+
             <p>
                 Nous sommes désolés de t'informer que ton rendez-vous
                 avec <strong>{recruteur.username}</strong> a été <strong>annulé</strong>.
             </p>
-            
+
             <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #f44336; margin: 20px 0;">
                 <p style="margin: 8px 0;"><strong>📅 Date initiale :</strong> {rdv.date_heure.strftime('%A %d %B %Y')}</p>
                 <p style="margin: 8px 0;"><strong>🕐 Heure :</strong> {rdv.date_heure.strftime('%H:%M')}</p>
@@ -314,20 +357,20 @@ def email_rdv_annule(candidat, rdv, recruteur, raison=None):
                 <p style="margin: 8px 0;"><strong>👤 Recruteur :</strong> {recruteur.username}</p>
                 <p style="margin: 8px 0;"><strong>📧 Contact :</strong> <a href="mailto:{recruteur.email}">{recruteur.email}</a></p>
             </div>
-            
+
             {raison_html}
-            
+
             <p>
                 <strong>{recruteur.username}</strong> te contactera très prochainement
                 pour fixer un nouveau rendez-vous.
             </p>
-            
+
             <p>
                 Si tu as des questions, n'hésite pas à le contacter directement.
             </p>
-            
+
             <hr style="border: none; border-top: 1px solid #e0d5ec; margin: 30px 0;">
-            
+
             <p style="font-size: 0.9rem; color: #666;">
                 Cordialement,<br>
                 L'équipe Voyance Academy
@@ -335,5 +378,6 @@ def email_rdv_annule(candidat, rdv, recruteur, raison=None):
         </div>
     </div>
     """
-    
-    return _envoyer(candidat.email, sujet, corps)
+
+    return _envoyer_async(current_app._get_current_object(),
+                          candidat.email, sujet, corps)
