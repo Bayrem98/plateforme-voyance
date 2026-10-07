@@ -20,6 +20,7 @@ except ImportError:
 # 📌 Liste des modèles à essayer dans l'ordre
 # Si un échoue (quota 429, modèle 404), on essaie le suivant
 MODELES_GEMINI = [
+    'gemini-1.5-flash',
     'gemini-2.5-flash-lite',      # ⭐ quota généreux
     'gemini-3.1-flash-lite',      # ⭐ quota généreux
     'gemini-flash-lite-latest',   # ⭐ alias stable
