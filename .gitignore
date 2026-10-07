@@ -17,4 +17,6 @@ instance/
 
 # Système
 .DS_Store
-Thumbs.db
+Thumbs.dbinit_render.py
+init_neon.py
+init_render.py
