@@ -20,8 +20,9 @@ except ImportError:
 # 📌 Liste des modèles à essayer dans l'ordre
 # Si un échoue (quota 429, modèle 404), on essaie le suivant
 MODELES_GEMINI = [
-    'gemini-3.8-flash',           # ✅ Confirmé fonctionnel
-    'gemini-flash-latest',        # ✅ Fallback stable
+    'gemini-3.1-flash-lite',   # 500 requêtes/jour gratuites
+    'gemini-3.5-flash-lite',   # 500 requêtes/jour gratuites
+    'gemini-3.8-flash',        # 20 requêtes/jour (fallback)
 ]
 
 
