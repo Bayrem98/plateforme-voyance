@@ -21,8 +21,8 @@ def init_mail(app):
 
     configuration = sib_api_v3_sdk.Configuration()
     configuration.api_key['api-key'] = api_key
-    # Désactive la vérification SSL stricte (parfois nécessaire sur Render)
-    configuration.verify_ssl = False
+    # ✅ SSL activé (c'est le comportement correct)
+    configuration.verify_ssl = True
     _brevo_config = configuration
     print("✅ Brevo API initialisée")
 
