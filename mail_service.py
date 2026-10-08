@@ -1,60 +1,66 @@
 """
-Service d'envoi d'emails via Flask-Mail.
-Envoi asynchrone pour ne pas bloquer les requêtes.
+Service d'envoi d'emails via l'API HTTP de Brevo.
+Contourne le blocage SMTP de Render (ports 587/465 bloqués sur plan gratuit).
 """
-import threading
-from flask_mail import Mail, Message
+import os
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
 from flask import current_app
 
-mail = Mail()
-
+# Configuration globale de l'API Brevo
+_brevo_config = None
 
 def init_mail(app):
-    """Initialise Flask-Mail avec l'app Flask."""
-    mail.init_app(app)
+    """Initialise l'API Brevo (appelée au démarrage)."""
+    global _brevo_config
+    api_key = os.environ.get('BREVO_API_KEY')
+    if not api_key:
+        print("⚠️ BREVO_API_KEY manquante dans les variables d'environnement")
+        return
 
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = api_key
+    _brevo_config = configuration
+    print("✅ Brevo API initialisée")
 
-def _envoyer(destinataire, sujet, corps_html, corps_texte=None):
-    """Fonction interne SYNCHRONE pour envoyer un email."""
-    try:
-        msg = Message(
-            subject=sujet,
-            recipients=[destinataire],
-            html=corps_html,
-            body=corps_texte or corps_html
-        )
-        mail.send(msg)
-        print(f"✅ Email envoyé à {destinataire}")
-        return True
-    except Exception as e:
-        print(f"⚠️  Erreur envoi email à {destinataire} : {e}")
+def _envoyer(destinataire, sujet, corps_html):
+    """Envoie un email via l'API HTTP de Brevo (non bloquée par Render)."""
+    if not _brevo_config:
+        print("⚠️ Brevo API non configurée")
         return False
 
+    try:
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+            sib_api_v3_sdk.ApiClient(_brevo_config)
+        )
 
-def _envoyer_async(app, destinataire, sujet, corps_html, corps_texte=None):
-    """
-    Envoie un email dans un thread séparé (non bloquant).
-    Retourne True immédiatement pour ne pas ralentir l'utilisateur.
-    """
-    def _worker():
-        try:
-            with app.app_context():
-                _envoyer(destinataire, sujet, corps_html, corps_texte)
-        except Exception as e:
-            print(f"⚠️  Erreur thread email : {e}")
+        sender_email = os.environ.get('MAIL_FROM_EMAIL', 'noreply@example.com')
+        sender_name = os.environ.get('MAIL_FROM_NAME', 'Voyance Academy')
 
-    thread = threading.Thread(target=_worker)
-    thread.daemon = True
-    thread.start()
-    return True
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+            to=[{"email": destinataire}],
+            sender={"name": sender_name, "email": sender_email},
+            subject=sujet,
+            html_content=corps_html
+        )
 
+        api_instance.send_transac_email(send_smtp_email)
+        print(f"✅ Email envoyé à {destinataire} via API Brevo")
+        return True
+
+    except ApiException as e:
+        print(f"⚠️ Erreur API Brevo : {e}")
+        return False
+    except Exception as e:
+        print(f"⚠️ Erreur inattendue : {e}")
+        return False
 
 # ═══════════════════════════════════════════════════════════
-#   EMAIL : BIENVENUE CANDIDAT
+#   EMAILS (les fonctions restent identiques, elles appellent _envoyer)
 # ═══════════════════════════════════════════════════════════
 
 def email_bienvenue_candidat(candidat, formateur=None, mot_de_passe=None):
-    """Email de bienvenue envoyé au nouveau candidat (ASYNCHRONE)."""
+    """Email de bienvenue (via API Brevo)."""
     sujet = "🎓 Bienvenue sur Voyance Academy"
 
     formateur_info = ""
@@ -76,20 +82,19 @@ def email_bienvenue_candidat(candidat, formateur=None, mot_de_passe=None):
         </div>
         <div style="background: #fff3cd; padding: 15px; border-radius: 10px; border-left: 4px solid #ffc107; margin: 15px 0;">
             <p style="margin: 0; font-size: 0.9rem;">
-                <strong>⚠️ Important :</strong> Garde bien ce mot de passe. Tu pourras le changer après ta première connexion.
+                <strong>⚠️ Important :</strong> Garde bien ce mot de passe.
             </p>
         </div>
         """
     else:
         identifiants_html = f"""
         <div style="background: white; padding: 20px; border-radius: 10px; border-left: 4px solid #7b1fa2; margin: 20px 0;">
-            <p style="margin: 8px 0;"><strong>🔑 Nom d'utilisateur :</strong> <code style="background: #f3e5f5; padding: 3px 8px; border-radius: 5px;">{candidat.username}</code></p>
+            <p style="margin: 8px 0;"><strong>🔑 Nom d'utilisateur :</strong> <code>{candidat.username}</code></p>
             <p style="margin: 8px 0;"><strong>📧 Email :</strong> {candidat.email}</p>
-            <p style="margin: 8px 0; color: #666; font-size: 0.9rem;">
-                <em>Ton mot de passe t'a été communiqué séparément.</em>
-            </p>
         </div>
         """
+
+    base_url = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
 
     corps = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -97,37 +102,26 @@ def email_bienvenue_candidat(candidat, formateur=None, mot_de_passe=None):
             <h1 style="margin: 0;">🔮 Voyance Academy</h1>
             <p style="margin: 10px 0 0 0;">Bienvenue dans ta formation</p>
         </div>
-
         <div style="background: #f9f5ff; padding: 30px; border-radius: 0 0 15px 15px;">
             <p>Bonjour <strong>{candidat.username}</strong>,</p>
-
             <p>🎉 Ton compte candidat a été créé avec succès !</p>
-
-            <p>Voici tes identifiants pour te connecter :</p>
-
+            <p>Voici tes identifiants :</p>
             {identifiants_html}
-
             {formateur_info}
-
             <div style="text-align: center; margin: 30px 0;">
-                <a href="{current_app.config['BASE_URL']}/login"
-                   style="background: linear-gradient(135deg, #4a148c, #7b1fa2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
+                <a href="{base_url}/login" style="background: linear-gradient(135deg, #4a148c, #7b1fa2); color: white; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; display: inline-block;">
                     🚀 Accéder à ma formation
                 </a>
             </div>
-
-            <hr style="border: none; border-top: 1px solid #e0d5ec; margin: 30px 0;">
-
-            <p style="font-size: 0.9rem; color: #666;">
-                À bientôt sur la plateforme !<br>
-                L'équipe Voyance Academy
-            </p>
+            <p style="font-size: 0.9rem; color: #666;">À bientôt !<br>L'équipe Voyance Academy</p>
         </div>
     </div>
     """
 
-    return _envoyer_async(current_app._get_current_object(),
-                          candidat.email, sujet, corps)
+    return _envoyer(candidat.email, sujet, corps)
+
+# Tu peux garder les autres fonctions (email_rdv_candidat, email_felicitations, etc.) telles quelles, 
+# car elles appellent _envoyer et le contenu HTML ne change pas.
 
 
 # ═══════════════════════════════════════════════════════════
